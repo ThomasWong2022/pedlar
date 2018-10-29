@@ -161,7 +161,12 @@ var tick_chart = new Chart(ctx, {
       data: []}
     ]
   },
-  options: {elements: { line: { tension: 0, fill: false }}}
+  options: {
+    elements: { line: { tension: 0, fill: false },
+                point: { radius: 0}},
+    scales: {xAxes: [{ ticks: { display: false },
+                       gridLines: { display: false }}]}
+  }
 });
 
 // Handle incoming socket messages
