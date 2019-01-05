@@ -117,7 +117,7 @@ void OnTick()
    if(SymbolInfoTick(Symbol(),last_tick))
      {
       if(tofile)
-         FileWrite(filehandle,"tick",last_tick.bid,last_tick.ask);
+         FileWrite(filehandle,"tick",last_tick.bid,last_tick.ask,TimeCurrent());
       else
         {
          tickbuf buf;
@@ -142,7 +142,7 @@ void OnTick()
       buf.low=iLow(Symbol(),Period(),1);
       buf.close=iClose(Symbol(),Period(),1);
       if(tofile)
-         FileWrite(filehandle,"bar",buf.open,buf.high,buf.low,buf.close);
+         FileWrite(filehandle,"bar",buf.open,buf.high,buf.low,buf.close,TimeCurrent());
       else
         {
          int sent=zmq_send(socket, buf, sizeof(buf), NULL);
