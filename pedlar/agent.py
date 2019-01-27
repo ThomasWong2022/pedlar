@@ -33,7 +33,7 @@ class Agent:
                ticker="tcp://localhost:7000",
                endpoint="http://localhost:5000"):
     self.backtest = backtest # backtesting file in any
-    self._last_tick = (0.0, 0.0) # last tick price for backtesting
+    self._last_tick = (None, None) # last tick price for backtesting
     self._last_order_id = 0 # auto increment id for backtesting
     self.username = username # pedlarweb username
     self.password = password # pedlarweb password
@@ -136,6 +136,9 @@ class Agent:
     logger.info("Placing a %s order.", otype)
     try:
       if self.backtest:
+        # Check last tick exists:
+        if self._last_tick[0] is None or self._last_tick[1] is None:
+          raise ValueError(f"No last tick data: {self._last_tick}")
         # Place order locally
         bidaskidx = 0 if otype == "buy" else 1
         order = Order(id=self._last_order_id+1, price=self._last_tick[bidaskidx],

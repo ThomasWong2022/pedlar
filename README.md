@@ -62,7 +62,7 @@ Key things to keep in mind:
  - The ticker connection receives from ZeroMQ whereas the trade requests are made via HTTP. There might some ticks dropped if the trade request takes too long.
 
 ### Basic Backtesting
-The agents can backtest agaisnt a CSV file of the following format, last column time is optional and time format is adjustable through `time_format` of the `Agent` class:
+The agents can backtest against a CSV file of the following format, last column time is optional and time format is adjustable through `time_format` of the `Agent` class:
 
 ```
 tick,1.26361,1.26375,2019.01.03 23:44:42
