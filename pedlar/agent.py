@@ -1,6 +1,7 @@
 """mt5 zmq test client."""
 import argparse
 from collections import namedtuple
+from datetime import datetime
 import logging
 import re
 import struct
@@ -26,12 +27,13 @@ class Agent:
   name = "agent"
   polltimeout = 2000 # milliseconds
   csrf_re = re.compile('name="csrf_token" type="hidden" value="(.+)"')
+  time_format = "%Y.%m.%d %H:%M:%S" # datetime column format
 
   def __init__(self, backtest=None, username="nobody", password="",
                ticker="tcp://localhost:7000",
                endpoint="http://localhost:5000"):
     self.backtest = backtest # backtesting file in any
-    self._last_tick = (0.0, 0.0) # last tick price for backtesting
+    self._last_tick = (None, None) # last tick price for backtesting
     self._last_order_id = 0 # auto increment id for backtesting
     self.username = username # pedlarweb username
     self.password = password # pedlarweb password
@@ -134,6 +136,9 @@ class Agent:
     logger.info("Placing a %s order.", otype)
     try:
       if self.backtest:
+        # Check last tick exists:
+        if self._last_tick[0] is None or self._last_tick[1] is None:
+          raise ValueError(f"No last tick data: {self._last_tick}")
         # Place order locally
         bidaskidx = 0 if otype == "buy" else 1
         order = Order(id=self._last_order_id+1, price=self._last_tick[bidaskidx],
@@ -198,19 +203,21 @@ class Agent:
           return False
     return True
 
-  def on_tick(self, bid, ask):
+  def on_tick(self, bid, ask, time=None):
     """Called on every tick update.
     :param bid: latest bid price
     :param ask: latest asking price
+    :param time: datetime of tick
     """
     pass
 
-  def on_bar(self, bopen, bhigh, blow, bclose):
+  def on_bar(self, bopen, bhigh, blow, bclose, time=None):
     """Called on every last bar update.
     :param bopen: opening price
     :param bhigh: highest price
     :param blow: lowest price
     :param bclose: closing price
+    :param time: datetime of bar
     """
     pass
 
@@ -231,11 +238,11 @@ class Agent:
         if len(raw) == 17:
           # We have tick data
           bid, ask = struct.unpack_from('dd', raw, 1) # offset topic
-          self.on_tick(bid, ask)
+          self.on_tick(bid, ask, datetime.now())
         elif len(raw) == 33:
           # We have bar data
           bo, bh, bl, bc = struct.unpack_from('dddd', raw, 1) # offset topic
-          self.on_bar(bo, bh, bl, bc)
+          self.on_bar(bo, bh, bl, bc, datetime.now())
     finally:
       logger.info("Stopping agent...")
       self.disconnect()
@@ -247,12 +254,15 @@ class Agent:
       reader = csv.reader(csvfile)
       try:
         for row in reader:
-          data = [float(x) for x in row[1:]]
           if row[0] == 'tick':
-            self._last_tick = tuple(data)
-            self.on_tick(*data)
+            # Check if time column exists
+            time = datetime.strptime(row.pop(), self.time_format) if len(row) > 3 else None
+            self._last_tick = tuple([float(x) for x in row[1:]])
+            self.on_tick(*self._last_tick, time=time)
           elif row[0] == 'bar':
-            self.on_bar(*data)
+            # Check if time column exists
+            time = datetime.strptime(row.pop(), self.time_format) if len(row) > 5 else None
+            self.on_bar(*[float(x) for x in row[1:]], time=time)
       except KeyboardInterrupt:
         pass # Nothing to do
       finally:

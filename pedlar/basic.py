@@ -23,7 +23,7 @@ class BasicAgent(Agent):
     """On order close handler."""
     print("PROFIT:", profit)
 
-  def on_tick(self, bid, ask):
+  def on_tick(self, bid, ask, time=None):
     """On tick handler."""
     self.past_ticks.append(bid)
     # Fill the buffer
@@ -43,7 +43,7 @@ class BasicAgent(Agent):
     self.past_avg = avg
     self.period = 0
 
-  def on_bar(self, bopen, bhigh, blow, bclose):
+  def on_bar(self, bopen, bhigh, blow, bclose, time=None):
     """On bar handler."""
     pass
 

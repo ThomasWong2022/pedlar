@@ -31,16 +31,16 @@ class MyAgent(Agent):
     print("Order closed", order, profit)
     print("Current balance:", self.balance) # Agent balance only
 
-  def on_tick(self, bid, ask):
+  def on_tick(self, bid, ask, time=None):
     """Called on every tick update."""
-    print("Tick:", bid, ask)
+    print("Tick:", bid, ask, time)
     # self.buy()
     # self.sell()
     # self.close()
 
-  def on_bar(self, bopen, bhigh, blow, bclose):
+  def on_bar(self, bopen, bhigh, blow, bclose, time=None):
     """Called on every bar update."""
-    print("Bar:", bopen, bhigh, blow, bclose)
+    print("Bar:", bopen, bhigh, blow, bclose, time)
 
 if __name__ == "__main__":
   import logging
@@ -62,21 +62,20 @@ Key things to keep in mind:
  - The ticker connection receives from ZeroMQ whereas the trade requests are made via HTTP. There might some ticks dropped if the trade request takes too long.
 
 ### Basic Backtesting
-The agents can backtest agaisnt a CSV file of the following format:
+The agents can backtest against a CSV file of the following format, last column time is optional and time format is adjustable through `time_format` of the `Agent` class:
 
 ```
-tick,1.29127,1.292
-tick,1.29139,1.29212
-tick,1.29145,1.29218
-bar,1.29584,1.29606,1.29547,1.29554
-tick,1.29138,1.29189
-tick,1.29135,1.29186
-tick,1.29134,1.29185
-tick,1.29136,1.29187
-tick,1.29133,1.29184
+tick,1.26361,1.26375,2019.01.03 23:44:42
+tick,1.2636,1.26374,2019.01.03 23:44:59
+tick,1.2636,1.26378,2019.01.03 23:45:00
+bar,1.26386,1.26398,1.26355,1.2636,2019.01.03 23:45:00
+tick,1.26359,1.26377,2019.01.03 23:45:02
+tick,1.26357,1.26375,2019.01.03 23:45:05
+tick,1.26356,1.26374,2019.01.03 23:45:07
+tick,1.26358,1.26376,2019.01.03 23:45:10
 ```
 
-which can be used with an agent `python3 myagent.py -b ticks.csv`. Essentially each line will invoke corresponding `on_tick` or `on_bar` function. **The actual profit and trade results are computed offline based on absolute price differences.** This means the agent will run completely offline and the actual results are only useful to get an idea about the performance or train a neural network. Any broker commissions, price requotes etc are not factored.
+which can be used with an agent `python3 myagent.py -b ticks.csv`. Essentially each line will invoke corresponding `on_tick` or `on_bar` function. **The actual profit and trade results are computed offline based on absolute price differences.** This means the agent will run completely offline and the actual results are only useful to get an idea about the performance or train a neural network. Any extra broker commissions beyond bid-ask spread, price requotes etc are not factored.
 
 ## Hosting
 Pedlar involves 4 components that talk to each other to create a platform for agents to trade:
