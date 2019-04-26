@@ -6,6 +6,9 @@ import logging
 import re
 import struct
 
+import json
+import pandas as pd
+
 import requests
 import zmq
 
@@ -15,7 +18,7 @@ logger.info("pyzmq: %s", zmq.pyzmq_version())
 
 # pylint: disable=broad-except,too-many-instance-attributes,too-many-arguments
 
-Order = namedtuple('Order', ['id', 'price', 'volume', 'type'])
+Order = namedtuple('Order', ['id', 'exchange', 'ticker', 'price', 'volume', 'type'])
 
 # Context are thread safe already,
 # we'll create one global one for all agents
@@ -33,16 +36,27 @@ class Agent:
                ticker="tcp://localhost:7000",
                endpoint="http://localhost:5000"):
     self.backtest = backtest # backtesting file in any
-    self._last_tick = (None, None) # last tick price for backtesting
     self._last_order_id = 0 # auto increment id for backtesting
+
     self.username = username # pedlarweb username
     self.password = password # pedlarweb password
     self.endpoint = endpoint # pedlarweb endpoint
     self._session = None # pedlarweb requests Session
     self.ticker = ticker # Ticker url
+    self._socket = None # Ticker socket
     self._poller = None # Ticker socket polling object
+
+    # Orders are stored as a dictionary/ Redis Cache 
+    # Balance: PnL figure 
+    # Cash: Leverage limit on orders, so need to adjust for place_order methods 
     self.orders = dict() # Orders indexed using order id
-    self.balance = 0.0 # Local session balance
+    self.cash = 1000000 # Local session balance
+    self.balance = 0 
+
+    # Porfolio are stored as a dictionary/ Redis Cache 
+
+    # Recent market data should be a dictionary of dictionary/ Redis Cache 
+    self._last_tick = (None, None) # last tick price for backtesting
 
   @classmethod
   def from_args(cls, parents=None):
@@ -92,6 +106,7 @@ class Agent:
     # socket.setsockopt(zmq.SUBSCRIBE, bytes.fromhex('00'))
     logger.info("Connecting to ticker: %s", self.ticker)
     socket.connect(self.ticker)
+    self._socket = socket
     self._poller = zmq.Poller()
     self._poller.register(socket, zmq.POLLIN)
 
@@ -109,10 +124,10 @@ class Agent:
     """Called on successful order."""
     pass
 
-  def talk(self, order_id=0, volume=0.01, action=0):
+  def talk(self, order_id=0, volume=0.01, action=0, exchange='IEX', ticker='SPY'):
     """Make a request response attempt to Pedlar web."""
     payload = {'order_id': order_id, 'volume': volume, 'action': action,
-               'name': self.name}
+               'name': self.name, 'exchange': exchange, 'ticker': ticker }
     try:
       r = self._session.post(self.endpoint+'/trade', json=payload)
       r.raise_for_status()
@@ -122,8 +137,15 @@ class Agent:
       raise IOError("Pedlar web server communication error.")
     return resp
 
-  def _place_order(self, otype="buy", volume=0.01, single=True, reverse=True):
+  def _place_order(self, otype="buy", volume=0.01, exchange='IEX', ticker='SPY', single=True, reverse=True):
     """Place a buy or a sell order."""
+    
+    # Whether to close existing orders is debatable 
+    # otype can be extended to support 
+    # Market buy/ Market sell 
+    # Short-sell restrictions? 
+
+
     ootype = "sell" if otype == "buy" else "buy" # Opposite order type
     if (reverse and
         not self.close([oid for oid, o in self.orders.items() if o.type == ootype])):
@@ -132,6 +154,8 @@ class Agent:
     if single and [1 for o in self.orders.values() if o.type == otype]:
       # There is already an order of the same type
       return
+
+    
     # Request the actual order
     logger.info("Placing a %s order.", otype)
     try:
@@ -221,6 +245,55 @@ class Agent:
     """
     pass
 
+
+  def onIEX(self, tickjson):
+    """Called on IEX tick update 
+    :param tickjson: json of tick data, example 
+    {'symbol': 'TMO', 'sector': 'pharmaceuticalsbiotechnology', 'securityType': 'commonstock', 
+    'bidPrice': 259.81, 'bidSize': 100, 'askPrice': 259.96, 'askSize': 200, 
+    'lastUpdated': 1555612786973, 'lastSalePrice': 259.91, 
+    'lastSaleSize': 100, 'lastSaleTime': 1555612745216, 'volume': 68225, 
+    'marketPercent': 0.03438, 'seq': 13202}
+    """
+    pass
+
+
+  def onTrueFX(self, dataframe):
+    """Called on IEX tick update 
+    :param dataframe: pandas dataframe of bid ask quotes from TrueFx, index is by FX pairs 
+
+    """
+    pass
+
+
+
+
+  def ondata(self, pricingsource, tickdata):
+    """ Caleed on every data update 
+    :param pricingsource: name of pricing source such as IEX, TrueFX 
+    :param tickdata: bytes representation of tickdata 
+    """
+
+    truefxheader = None
+    truefxnames = ['Symbol', 'Date', 'Bid', 'Bid_point','Ask', 'Ask_point', 'High', 'Low', 'Open']
+
+    def bytes2df(bytestream, header, names):
+      data_io = pd.compat.StringIO(bytestream.decode())
+      df = pd.read_csv(data_io, header=header, names=names)
+      del data_io
+      return df
+
+    if pricingsource == 'IEX':
+      d = json.loads(tickdata)
+      self.onIEX(d)
+
+    if pricingsource == 'TrueFX':
+      df = bytes2df(tickdata, truefxheader, truefxnames)
+      df['Date'] = pd.to_datetime(df['Date'], unit='ms')
+      df.set_index('Symbol', inplace=True)
+      self.onTrueFX(df)
+  
+
   def remote_run(self):
     """Start main loop and receive updates."""
     # Check connection
@@ -233,20 +306,19 @@ class Agent:
         socks = self._poller.poll(self.polltimeout)
         if not socks:
           continue
-        raw = socks[0][0].recv()
-        # unpack bytes https://docs.python.org/3/library/struct.html
-        if len(raw) == 17:
-          # We have tick data
-          bid, ask = struct.unpack_from('dd', raw, 1) # offset topic
-          self.on_tick(bid, ask, datetime.now())
-        elif len(raw) == 33:
-          # We have bar data
-          bo, bh, bl, bc = struct.unpack_from('dddd', raw, 1) # offset topic
-          self.on_bar(bo, bh, bl, bc, datetime.now())
+        if socks[self._socket] == zmq.POLLIN:
+          message = self._socket.recv_multipart()
+          pricingsource = message[0].decode()
+          tick = message[1]
+          self.ondata(pricingsource, tick)
     finally:
       logger.info("Stopping agent...")
       self.disconnect()
 
+  
+  # Local Run Backtest 
+  # Needs to design MongoDB and will be a major revision
+  
   def local_run(self):
     """Run agaisnt local backtesting file."""
     import csv

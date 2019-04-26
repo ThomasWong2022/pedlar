@@ -61,7 +61,8 @@ class Broker:
 
   def talk(self, order_id=0, volume=0.01, action=0):
     """Round of request-response with broker."""
-    # Prepare request, ulong order_id, double volume, uchar action
+    # Prepare request, ulong order_id, double volume, uchar action 
+    # Need to add pricing source and security name for the tick 
     req = struct.pack('LdB', order_id, volume, action)
     sock = self.connection
     # Handled in a non-blocking fashion by eventlet

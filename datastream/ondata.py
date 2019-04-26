@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import pandas as pd 
-import pandas.compat as compat
 import zmq
 import datetime
 
@@ -14,7 +13,7 @@ socket = context.socket(zmq.SUB)
 
 # Connect to tcp ports for pricing/news and different sources 
 # Each message send will have a topic indicating the pricing source and then the actual content 
-socket.connect ('tcp://127.0.0.1:3001')
+socket.connect ('tcp://127.0.0.1:7000')
 socket.setsockopt_string(zmq.SUBSCRIBE, 'IEX')
 socket.setsockopt_string(zmq.SUBSCRIBE, 'TrueFX')
 
@@ -28,7 +27,7 @@ TrueFXheader=None
 TrueFXnames=['Symbol', 'Date', 'Bid', 'Bid_point','Ask', 'Ask_point', 'High', 'Low', 'Open']
 
 def bytes2df(bytestream,header,names):
-    data_io = compat.StringIO(bytestream.decode())
+    data_io = pd.compat.StringIO(bytestream.decode())
     df = pd.read_csv(data_io,header=header,names=names)
     del data_io
     return df 

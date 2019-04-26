@@ -32,13 +32,16 @@ class Ticker:
     # to check for each incoming message
     # set from server as uchar topic = X
     # We'll subsribe to only tick updates for now
-    socket.setsockopt(zmq.SUBSCRIBE, bytes.fromhex('00'))
+    socket.setsockopt(zmq.SUBSCRIBE, bytes())
     with self.app.app_context():
       current_app.logger.debug("Connecting to ticker: %s", current_app.config['TICKER_URL'])
       socket.connect(current_app.config['TICKER_URL'])
       while True:
-        raw = socket.recv()
+        message = socket.recv_multipart()
+        pricingsource = message[0].decode()
+        tick = message[1]
         # unpack bytes https://docs.python.org/3/library/struct.html
+        # Need to decide on how to prase tickdata 
         bid, ask = struct.unpack_from('dd', raw, 1) # offset topic
         self.socketio.emit('tick', {'bid': round(bid, 5), 'ask': round(ask, 5)})
     # socket will be cleaned up at garbarge collection

@@ -28,6 +28,12 @@ Order = namedtuple('Order', ['id', 'price', 'volume', 'type'])
 BID, ASK = 0.0, 0.0
 ORDERS = dict() # Orders indexed using order id
 
+
+
+# Need to define a way to store the latest quotes of a security 
+# A redis cache would replace passing variables by Globals. 
+# This will solve the problem of passing info between two coritunes 
+
 def handle_tick():
   """Listen to incoming tick updates."""
   socket = context.socket(zmq.SUB)
@@ -35,18 +41,22 @@ def handle_tick():
   # to check for each incoming message
   # set from server as uchar topic = X
   # We'll subsribe to only tick updates for now
-  socket.setsockopt(zmq.SUBSCRIBE, bytes.fromhex('00'))
+  socket.setsockopt(zmq.SUBSCRIBE, bytes())
   logger.info("Connecting to ticker: %s", ARGS.ticker)
   socket.connect(ARGS.ticker)
   while True:
-    raw = socket.recv()
-    # unpack bytes https://docs.python.org/3/library/struct.html
-    bid, ask = struct.unpack_from('dd', raw, 1) # offset topic
-    logger.debug("Tick: %f %f", bid, ask)
-    # We'll use global to pass tick data between green threads
-    # since only 1 actually run at a time
-    global BID, ASK # pylint: disable=global-statement
-    BID, ASK = bid, ask
+    message = socket.recv_multipart()
+    pricingsource = message[0].decode()
+    tick = message[1]
+    # Build redis cache for storing recent prices 
+
+    # # unpack bytes https://docs.python.org/3/library/struct.html
+    # bid, ask = struct.unpack_from('dd', raw, 1) # offset topic
+    # logger.debug("Tick: %f %f", bid, ask)
+    # # We'll use global to pass tick data between green threads
+    # # since only 1 actually run at a time
+    # global BID, ASK # pylint: disable=global-statement
+    # BID, ASK = bid, ask
   # socket will be cleaned up at garbarge collection
 
 def handle_broker():

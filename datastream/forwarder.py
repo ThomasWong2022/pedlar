@@ -10,7 +10,7 @@ def main():
     
     # Socket facing services
     backend = context.socket(zmq.PUB)
-    backend.bind('tcp://127.0.0.1:3001')
+    backend.bind('tcp://127.0.0.1:7000')
 
     zmq.proxy(frontend, backend)
     
