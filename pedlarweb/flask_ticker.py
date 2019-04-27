@@ -47,6 +47,5 @@ class Ticker:
           d = json.loads(tickdata)
           bid = d['bid']
           ask = d['ask']
-          print(d)
         self.socketio.emit('tick', {'bid': round(bid, 5), 'ask': round(ask, 5)})
     # socket will be cleaned up at garbarge collection
