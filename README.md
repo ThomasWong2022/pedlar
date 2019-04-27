@@ -1,3 +1,15 @@
+Stuff to change 
+
+pedlar: agent.py 
+Object oriented design for Orders and Portfolio 
+Orders, Portfolio as a dictionary for dictionary (Fast retrival) Proper design would be Redis but required Linux
+buy sell close and _place_order should be unified into Market Order (Buy/Sell) 
+https://www.quantconnect.com/docs/algorithm-reference/trading-and-orders 
+
+
+
+
+
 # :chart_with_upwards_trend: pedlar
 Pedlar is an algorithmic trading platform for Python designed for trading events, competitions and sessions such as Algothons. It includes a live web interface with multiple accounts with account sharing and live chat, an HTTP API with example Python trading agents and a [ZeroMQ](http://zeromq.org/) based broker connection to [MetaTrader5](https://www.metatrader5.com/en).
 
