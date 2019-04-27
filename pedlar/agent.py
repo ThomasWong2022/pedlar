@@ -50,8 +50,8 @@ class Agent:
     # Balance: PnL figure 
     # Cash: Leverage limit on orders, so need to adjust for place_order methods 
     self.orders = dict() # Orders indexed using order id
-    self.cash = 1000000 # Local session balance
-    self.balance = 0 
+    self.cash = 1000000 # Initial capital
+    self.balance = 0 # PnL 
 
     # Porfolio are stored as a dictionary/ Redis Cache 
 
@@ -127,7 +127,7 @@ class Agent:
   def talk(self, order_id=0, volume=0.01, action=0, exchange='IEX', ticker='SPY'):
     """Make a request response attempt to Pedlar web."""
     payload = {'order_id': order_id, 'volume': volume, 'action': action,
-               'name': self.name, 'exchange': exchange, 'ticker': ticker }
+               'exchange': exchange, 'ticker': ticker, 'name': self.name, }
     try:
       r = self._session.post(self.endpoint+'/trade', json=payload)
       r.raise_for_status()
@@ -165,11 +165,15 @@ class Agent:
           raise ValueError(f"No last tick data: {self._last_tick}")
         # Place order locally
         bidaskidx = 0 if otype == "buy" else 1
-        order = Order(id=self._last_order_id+1, price=self._last_tick[bidaskidx],
+        order = Order(id=self._last_order_id+1, exchange='CSV', ticker='CSV', price=self._last_tick[bidaskidx],
                       volume=volume, type=otype)
       else:
         # Contact pedlarweb
-        resp = self.talk(volume=volume, action=2 if otype == "buy" else 3)
+        if otype == "buy":
+          action = 2
+        else:
+          action = 3
+        resp = self.talk(volume=volume, action=action, exchange=exchange, ticker=ticker)
         order = Order(id=resp['order_id'], price=resp['price'], volume=volume, type=otype)
       self._last_order_id = order.id
       self.orders[order.id] = order
@@ -257,11 +261,17 @@ class Agent:
     """
     pass
 
+    def onSample(self, tickjson):
+    """Called on IEX tick update 
+    :param tickjson: json of tick data, example 
+    {'symbol': 'ICL', 'bid': 100, 'ask': 100.5}
+    """
+    pass
+
 
   def onTrueFX(self, dataframe):
     """Called on IEX tick update 
     :param dataframe: pandas dataframe of bid ask quotes from TrueFx, index is by FX pairs 
-
     """
     pass
 
@@ -269,7 +279,7 @@ class Agent:
 
 
   def ondata(self, pricingsource, tickdata):
-    """ Caleed on every data update 
+    """ Caleed on every data update
     :param pricingsource: name of pricing source such as IEX, TrueFX 
     :param tickdata: bytes representation of tickdata 
     """
@@ -292,6 +302,11 @@ class Agent:
       df['Date'] = pd.to_datetime(df['Date'], unit='ms')
       df.set_index('Symbol', inplace=True)
       self.onTrueFX(df)
+
+    if pricingsource == 'Sample':
+      d = json.loads(tickdata)
+      self.onSample(d)
+    
   
 
   def remote_run(self):

@@ -16,6 +16,7 @@ socket = context.socket(zmq.SUB)
 socket.connect ('tcp://127.0.0.1:7000')
 socket.setsockopt_string(zmq.SUBSCRIBE, 'IEX')
 socket.setsockopt_string(zmq.SUBSCRIBE, 'TrueFX')
+socket.setsockopt_string(zmq.SUBSCRIBE, 'Sample')
 
 poller=zmq.Poller()
 poller.register(socket, zmq.POLLIN)
@@ -33,21 +34,28 @@ def bytes2df(bytestream,header,names):
     return df 
 
 
-def ondata(pricingsource,tickdata):
-    if pricingsource=='IEX':
+def ondata(pricingsource, tickdata):
+
+    if pricingsource =='IEX':
         try:
-            d = json.loads(message[1])
+            d = json.loads(tickdata)
             print(d)
         except json.decoder.JSONDecodeError:
             print('Not decoded')
-    if pricingsource=='TrueFX':
+
+    if pricingsource =='TrueFX':
         try:
-            df = bytes2df(message[1],TrueFXheader,TrueFXnames)
+            df = bytes2df(tickdata,TrueFXheader,TrueFXnames)
             df['Date'] = pd.to_datetime(df['Date'], unit='ms')
             df.set_index('Symbol',inplace=True)
             print(df.to_dict())
         except:
-            print('Not decoded') 
+            print('Not decoded')
+
+    if pricingsource == 'Sample':
+        d = json.loads(tickdata)
+        print(d) 
+
 
 if __name__=='__main__':
     while True:
@@ -56,6 +64,7 @@ if __name__=='__main__':
             continue    
         if socks[socket] == zmq.POLLIN:
             message = socket.recv_multipart()
+            print(message)
             pricingsource=message[0].decode()
             tick=message[1]
             ondata(pricingsource,tick)

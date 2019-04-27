@@ -1,5 +1,6 @@
 """Broker extension for Flask."""
 import struct
+import json
 from flask import current_app, _app_ctx_stack, abort
 
 from eventlet.green import zmq
@@ -59,19 +60,19 @@ class Broker:
             req.get('action', 0) in (0, 1, 2, 3))
     return cond
 
-  def talk(self, order_id=0, volume=0.01, action=0):
+  def talk(self, order_id=0, volume=0.01, action=0 , exchange='IEX', ticker='SPY'):
     """Round of request-response with broker."""
-    # Prepare request, ulong order_id, double volume, uchar action 
     # Need to add pricing source and security name for the tick 
-    req = struct.pack('LdB', order_id, volume, action)
+    # prefer to send json over socket 
+    #req = struct.pack('LdB', order_id, volume, action)
+    req = {'order_id': order_id, 'volume':volume, 'action': action, 'exchange': exchange, 'ticker': ticker}
     sock = self.connection
     # Handled in a non-blocking fashion by eventlet
-    sock.send(req)
+    sock.send(bytes(json.dumps(req), 'utf-8'))
     # Check response
     resp = sock.recv()
-    # ulong order_id, double price, double profit, uint retcode
-    order_id, price, profit, retcode = struct.unpack('LddI', resp)
-    return {'order_id': order_id, 'price': price, 'profit': profit, 'retcode': retcode}
+    d = json.loads(resp)
+    return d
 
   def handle(self, request):
     """Handle a client request."""

@@ -1,6 +1,7 @@
 import os
 import datetime
 import csv
+import time
 
 import zmq
 import requests
@@ -194,8 +195,8 @@ def read_tick(session,session_data,flag_parse_data,authrozied):
         return data
 
 def config(symbols='', 
-          username='', password='', 
-          force_unregistered='', expire_after='-1', snapshot=False, api_format = 'csv',flag_parse_data = True):
+          username='Thomas759', password='Thomas524', 
+          force_unregistered='', expire_after='-1', snapshot=True, api_format = 'csv',flag_parse_data = True):
     session = _get_session(expire_after)
     username, password = _init_credentials(username, password)
     is_registered = _is_registered(username, password)
@@ -208,13 +209,8 @@ def config(symbols='',
 
 if __name__=='__main__':
     session, session_data,flag_parse_data,authrorized=config(api_format ='csv',flag_parse_data = False)
-    buffercount=0
-    bufferlist=[]
     while True:
         data=read_tick(session, session_data,flag_parse_data,authrorized)
+        print(data)
         socket.send_multipart([bytes('TrueFX','utf-8'), bytes(data,'utf-8')])
-        bufferlist+=_parse_dict(data)
-        buffercount+=1
-        if buffercount>=10:
-            # write to mongo 
-            pass 
+        time.sleep(2)

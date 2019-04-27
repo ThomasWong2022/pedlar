@@ -66,6 +66,8 @@ class Order(db.Model):
   price_close = db.Column(db.Float())
   profit = db.Column(db.Float())
   closed = db.Column(db.DateTime())
+  ticker = db.Column(db.String(128))
+  exchange = db.Column(db.String(128))
   created = db.Column(db.DateTime(), nullable=False, default=datetime.datetime.now)
 
   @property

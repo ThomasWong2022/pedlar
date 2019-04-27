@@ -1,5 +1,6 @@
 """Ticker extension for Flask."""
 import struct
+import json 
 from flask import current_app
 
 from eventlet import spawn_n
@@ -39,9 +40,13 @@ class Ticker:
       while True:
         message = socket.recv_multipart()
         pricingsource = message[0].decode()
-        tick = message[1]
+        tickdata = message[1]
         # unpack bytes https://docs.python.org/3/library/struct.html
         # Need to decide on how to prase tickdata 
-        bid, ask = struct.unpack_from('dd', raw, 1) # offset topic
+        if pricingsource == 'Sample':
+          d = json.loads(tickdata)
+          bid = d['bid']
+          ask = d['ask']
+          print(d)
         self.socketio.emit('tick', {'bid': round(bid, 5), 'ask': round(ask, 5)})
     # socket will be cleaned up at garbarge collection

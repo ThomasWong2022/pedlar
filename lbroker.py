@@ -3,6 +3,7 @@ import argparse
 from collections import namedtuple
 import struct
 import logging
+import json 
 from eventlet import GreenPool
 from eventlet.green import zmq
 
@@ -22,17 +23,19 @@ ARGS = parser.parse_args()
 # Context are thread safe already,
 # we'll create one global one for all sockets
 context = zmq.Context()
-Order = namedtuple('Order', ['id', 'price', 'volume', 'type'])
+Order = namedtuple('Order', ['id', 'exchange', 'ticker', 'price', 'volume', 'type'])
 
 # Globals
 BID, ASK = 0.0, 0.0
 ORDERS = dict() # Orders indexed using order id
+MARKET = dict() # Market has the recent BID ASK 
 
+# MARKET dict example {'IEX:SPY:Bid':280,'IEX:SPY:Ask':281,} The idea is that each Key-Value pair 
+# is translatable to a Redis Cache 
 
 
 # Need to define a way to store the latest quotes of a security 
-# A redis cache would replace passing variables by Globals. 
-# This will solve the problem of passing info between two coritunes 
+
 
 def handle_tick():
   """Listen to incoming tick updates."""
@@ -47,9 +50,18 @@ def handle_tick():
   while True:
     message = socket.recv_multipart()
     pricingsource = message[0].decode()
-    tick = message[1]
-    # Build redis cache for storing recent prices 
-
+    tickdata = message[1]
+    if pricingsource == 'IEX':
+      d = json.loads(tickdata)
+      logger.debug("IEX Tick %s", d)
+    # To be implemeted later 
+    if pricingsource == 'TrueFX':
+      pass
+    if pricingsource == 'Sample':
+      d = json.loads(tickdata)
+      MARKET['Sample:ICL:bid'] = d['bid']
+      MARKET['Sample:ICL:ask'] = d['ask'] 
+      logger.info("Sample Tick %s", d)
     # # unpack bytes https://docs.python.org/3/library/struct.html
     # bid, ask = struct.unpack_from('dd', raw, 1) # offset topic
     # logger.debug("Tick: %f %f", bid, ask)
@@ -68,30 +80,41 @@ def handle_broker():
   while True:
     raw = socket.recv()
     # Prepare request: ulong order_id, double volume, uchar action
-    order_id, volume, action = struct.unpack('LdB', raw)
+    # order_id, volume, action = struct.unpack('LdB', raw)
     # Prepare response: ulong order_id, double price, double profit, uint retcode
-    resp = (order_id, 0.0, 0.0, 1) # Assume failure
-    if action == 1 and order_id in ORDERS: # Close order
+    d = json.loads(raw)
+    resp = {'order_id':d['order_id'], 'price': 0.0, 'profit': 0.0, 'retcode':1} # Assume failure
+    
+    if d['action'] == 1 and d['order_id'] in ORDERS: # Close order
       # BIG ASSUMPTION, account currency is the same as base currency
       # Ex. GBP account trading on GBPUSD since we don't have other
       # exchange rates streaming to us to handle conversion
-      order = ORDERS.pop(order_id)
-      closep = BID if order.type == 2 else ASK
-      diff = closep - order.price if order.type == 2 else order.price - closep
-      profit = diff*ARGS.leverage*order.volume*1000*(1/closep)
-      resp = (order_id, closep, round(profit, 2), 0)
+      order = ORDERS.pop(d['order_id'])
+      if order.type == 2:
+        index = order.exchange + ':' + order.ticker + ':Bid'
+        closep = MARKET[index]
+        diff = closep - order.price
+      else:
+        index = order.exchange + ':' + order.ticker + ':Ask'
+        closep = MARKET[index]
+        diff = order.price - closep
+      profit = diff*ARGS.leverage*order.volume
+      resp = {'order_id':d['order_id'], 'price': closep, 'profit': profit, 'retcode':1}
       logger.info("CLOSING: %s", resp)
-    elif action in (2, 3): # Buy - Sell
-      oprice = ASK if action == 2 else BID
-      order = Order(id=nextid, price=oprice, volume=volume, type=action)
+    elif d['action'] in (2, 3): # Buy - Sell
+      if d['action'] == 2:
+        index = order.exchange + ':' + order.ticker + ':Ask'
+        oprice = MARKET[index]
+      else:
+        index = order.exchange + ':' + order.ticker + ':Bid'
+        oprice = MARKET[index]        
+      order = Order(id=nextid, exchange=d['exchange'], ticker=d['ticker'], price=oprice, volume=d['volume'], type=d['action'])
       ORDERS[nextid] = order
       logger.info("ORDER: %s", order)
-      resp = (nextid, oprice, 0.0, 0)
+      resp = {'order_id':nextid, 'price': oprice, 'profit': profit, 'retcode':1}
       nextid += 1
     # Unknown action otherwise
-    # Pack and send response
-    resp = struct.pack('LddI', *resp)
-    socket.send(resp)
+    socket.send(bytes(json.dumps(resp), 'utf-8'))
 
 # Spawn green threads
 logging.basicConfig(level=logging.INFO)
