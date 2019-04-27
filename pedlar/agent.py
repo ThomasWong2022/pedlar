@@ -68,7 +68,7 @@ class Agent:
     parser.add_argument("-u", "--username", default="nobody", help="Pedlar Web username.")
     parser.add_argument("-p", "--password", default="", help="Pedlar Web password.")
     parser.add_argument("-t", "--ticker", default="tcp://localhost:7000", help="Ticker endpoint.")
-    parser.add_argument("-e", "--endpoint", default="http://localhost:5000", help="Pedlar Web endpoint.")
+    parser.add_argument("-e", "--endpoint", default="http://localhost:8000", help="Pedlar Web endpoint.")
     return cls(**vars(parser.parse_args()))
 
   def connect(self):
@@ -261,7 +261,7 @@ class Agent:
     """
     pass
 
-    def onSample(self, tickjson):
+  def onSample(self, tickjson):
     """Called on IEX tick update 
     :param tickjson: json of tick data, example 
     {'symbol': 'ICL', 'bid': 100, 'ask': 100.5}
@@ -318,7 +318,7 @@ class Agent:
     logger.info("Starting main trading loop...")
     try:
       while True:
-        socks = self._poller.poll(self.polltimeout)
+        socks = dict(self._poller.poll(self.polltimeout))
         if not socks:
           continue
         if socks[self._socket] == zmq.POLLIN:
