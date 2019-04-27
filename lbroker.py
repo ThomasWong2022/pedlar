@@ -59,9 +59,10 @@ def handle_tick():
       pass
     if pricingsource == 'Sample':
       d = json.loads(tickdata)
+      global MARKET
       MARKET['Sample:ICL:bid'] = d['bid']
       MARKET['Sample:ICL:ask'] = d['ask'] 
-      logger.info("Sample Tick %s", d)
+      logger.debug("Sample Tick %s", d)
     # # unpack bytes https://docs.python.org/3/library/struct.html
     # bid, ask = struct.unpack_from('dd', raw, 1) # offset topic
     # logger.debug("Tick: %f %f", bid, ask)
@@ -91,27 +92,31 @@ def handle_broker():
       # exchange rates streaming to us to handle conversion
       order = ORDERS.pop(d['order_id'])
       if order.type == 2:
-        index = order.exchange + ':' + order.ticker + ':Bid'
-        closep = MARKET[index]
+        index = order.exchange + ':' + order.ticker + ':bid'
+        closep = MARKET.get(index, 0)
         diff = closep - order.price
       else:
-        index = order.exchange + ':' + order.ticker + ':Ask'
-        closep = MARKET[index]
+        index = order.exchange + ':' + order.ticker + ':ask'
+        closep = MARKET.get(index, 0)
         diff = order.price - closep
       profit = diff*ARGS.leverage*order.volume
-      resp = {'order_id':d['order_id'], 'price': closep, 'profit': profit, 'retcode':1}
+      resp = {'order_id':d['order_id'], 'price': closep, 'profit': profit, 'retcode':0}
       logger.info("CLOSING: %s", resp)
+    
     elif d['action'] in (2, 3): # Buy - Sell
       if d['action'] == 2:
-        index = order.exchange + ':' + order.ticker + ':Ask'
-        oprice = MARKET[index]
+        index = d['exchange']  + ':' + d['ticker'] + ':ask'
+        oprice = MARKET.get(index, 0)
+        profit = 0
       else:
-        index = order.exchange + ':' + order.ticker + ':Bid'
-        oprice = MARKET[index]        
+        index = d['exchange']  + ':' + d['ticker'] + ':bid'
+        oprice = MARKET.get(index, 0)
+        profit = 0       
+      
       order = Order(id=nextid, exchange=d['exchange'], ticker=d['ticker'], price=oprice, volume=d['volume'], type=d['action'])
       ORDERS[nextid] = order
       logger.info("ORDER: %s", order)
-      resp = {'order_id':nextid, 'price': oprice, 'profit': profit, 'retcode':1}
+      resp = {'order_id':nextid, 'price': oprice, 'profit': profit, 'retcode':0}
       nextid += 1
     # Unknown action otherwise
     socket.send(bytes(json.dumps(resp), 'utf-8'))

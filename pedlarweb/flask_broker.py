@@ -60,7 +60,7 @@ class Broker:
             req.get('action', 0) in (0, 1, 2, 3))
     return cond
 
-  def talk(self, order_id=0, volume=0.01, action=0 , exchange='IEX', ticker='SPY'):
+  def talk(self, order_id=0, volume=0.01, action=0 , exchange='Sample', ticker='ICL'):
     """Round of request-response with broker."""
     # Need to add pricing source and security name for the tick 
     # prefer to send json over socket 

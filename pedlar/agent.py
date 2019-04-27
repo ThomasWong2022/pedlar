@@ -124,7 +124,7 @@ class Agent:
     """Called on successful order."""
     pass
 
-  def talk(self, order_id=0, volume=0.01, action=0, exchange='IEX', ticker='SPY'):
+  def talk(self, order_id=0, volume=0.01, action=0, exchange='Sample', ticker='ICL'):
     """Make a request response attempt to Pedlar web."""
     payload = {'order_id': order_id, 'volume': volume, 'action': action,
                'exchange': exchange, 'ticker': ticker, 'name': self.name, }
@@ -137,7 +137,7 @@ class Agent:
       raise IOError("Pedlar web server communication error.")
     return resp
 
-  def _place_order(self, otype="buy", volume=0.01, exchange='IEX', ticker='SPY', single=True, reverse=True):
+  def _place_order(self, otype="buy", volume=0.01, exchange='Sample', ticker='ICL', single=True, reverse=True):
     """Place a buy or a sell order."""
     
     # Whether to close existing orders is debatable 
@@ -174,28 +174,28 @@ class Agent:
         else:
           action = 3
         resp = self.talk(volume=volume, action=action, exchange=exchange, ticker=ticker)
-        order = Order(id=resp['order_id'], price=resp['price'], volume=volume, type=otype)
+        order = Order(id=resp['order_id'], price=resp['price'], volume=volume, type=otype , exchange=exchange, ticker=ticker)
       self._last_order_id = order.id
       self.orders[order.id] = order
       self.on_order(order)
     except Exception as e:
       logger.error("Failed to place %s order: %s", otype, str(e))
 
-  def buy(self, volume=0.01, single=True, reverse=True):
+  def buy(self, volume=0.01, single=True, reverse=True , exchange='Sample', ticker='ICL'):
     """Place a new buy order and store it in self.orders
     :param volume: size of trade
     :param single: only place if there is not an already
     :param reverse: close sell orders if any
     """
-    self._place_order(otype="buy", volume=volume, single=single, reverse=reverse)
+    self._place_order(otype="buy", volume=volume, single=single, reverse=reverse , exchange=exchange, ticker=ticker)
 
-  def sell(self, volume=0.01, single=True, reverse=True):
+  def sell(self, volume=0.01, single=True, reverse=True , exchange='Sample', ticker='ICL'):
     """Place a new sell order and store it in self.orders
     :param volume: size of trade
     :param single: only place if there is not an already
     :param reverse: close buy orders if any
     """
-    self._place_order(otype="sell", volume=volume, single=single, reverse=reverse)
+    self._place_order(otype="sell", volume=volume, single=single, reverse=reverse , exchange=exchange, ticker=ticker)
 
   def on_order_close(self, order, profit):
     """Called on successfull order close."""
