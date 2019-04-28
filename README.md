@@ -110,16 +110,6 @@ All the extra packages required can be installed using:
 pip3 install --no-cache-dir -U -r requirements.txt
 ```
 
-### Running MT5
-To get the ticker and broker components up and running you need to:
-
- 1. [Install MetaTrader 5](https://www.metatrader5.com/en/download), or some existing installation would work.
- 2. [Install ZeroMQ](http://zeromq.org/distro:microsoft-windows) for Windows since the scripts require the `libzmq.dll` to run. You might need to install a compatible [Visual C++](https://support.microsoft.com/en-gb/help/2977003/the-latest-supported-visual-c-downloads) runtime to get ZeroMQ running.
- 3. Find the installed ZeroMQ `bin` folder and move the DLL to `Library\libzmq.dll` as that is where the `libzmq.mqh` header expects it.
- 4. Copy files MetaTrader 5 files to the expected folders of your installation. An easy way to find that is to open the MetaEditor (F4 from trader) and right click on a folder to select *Open Folder*. For development it is easier to write a script that syncs the repo folder with the expected folders.
- 5. Once the ticker and broker is compiled, you can attach them to any chart that you want the tick updates to be sent and trade orders to be handled. You can run multiple at different ports as well. From "Options" the "Allow DLL Imports" needs to be enabled for obvious reasons.
- 6. If you get DLL import error, it is most likely because the ZeroMQ DLL isn't happy or the C++ runtime is not compatible.
-
 
 ### Running Local Broker
 As an alternative to executing trades live, there is `lbroker.py` that implements same interface as the actual MT5 broker but instead executes the orders locally based on the latest ticks provided by MT5. It is a simple stand-alone script:
@@ -133,10 +123,7 @@ The web server is a standard [Flask](http://flask.pocoo.org/) application organi
 
 ```bash
 mkdir instance && cp config.py instance/config.py # customise instance/config.py ex. database settings
-python3 -c "from pedlarweb import db; db.create_all()"
 ```
-
-If the in-memory default database is used, tables will be automatically created but *data is lost when server is stopped using an in-memory database.* Then the server can be run using standard Flask options:
 
 ```bash
 gunicorn --worker-class eventlet -w 1 pedlarweb:app 
