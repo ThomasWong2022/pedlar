@@ -54,6 +54,11 @@ def handle_tick():
     if pricingsource == 'IEX':
       d = json.loads(tickdata)
       logger.debug("IEX Tick %s", d)
+      bidname = 'IEX:{0}:bid'.format(d['symbol'])
+      askname = 'IEX:{0}:ask'.format(d['symbol'])
+      global MARKET
+      MARKET[bidname] = d['bidPrice']
+      MARKET[askname] = d['askPrice']
     # To be implemeted later 
     if pricingsource == 'TrueFX':
       pass
