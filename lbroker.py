@@ -53,13 +53,14 @@ def handle_tick():
     tickdata = message[1]
     if pricingsource == 'IEX':
       d = json.loads(tickdata)
-      print(d)
       logger.debug("IEX Tick %s", d)
-      bidname = 'IEX:{0}:bid'.format(d['symbol'])
-      askname = 'IEX:{0}:ask'.format(d['symbol'])
-      global MARKET
-      MARKET[bidname] = d['bidPrice']
-      MARKET[askname] = d['askPrice']
+      if d['symbol'] == 'SPY':
+        bidname = 'IEX:{0}:bid'.format(d['symbol'])
+        askname = 'IEX:{0}:ask'.format(d['symbol'])
+        global MARKET
+        MARKET[bidname] = d['bidPrice']
+        MARKET[askname] = d['askPrice']
+        print(MARKET)
     # To be implemeted later 
     if pricingsource == 'TrueFX':
       pass
@@ -99,6 +100,7 @@ def handle_broker():
       order = ORDERS.pop(d['order_id'])
       if order.type == 2:
         index = order.exchange + ':' + order.ticker + ':bid'
+        print(index)
         closep = MARKET.get(index, 0)
         diff = closep - order.price
       else:

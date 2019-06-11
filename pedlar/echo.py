@@ -6,20 +6,18 @@ class EchoAgent(Agent):
 
   def __init__(self, **kwargs):
     self.counter = 0
+    self.previous = 0
+    self.history = []
     super().__init__(**kwargs)
-
-  def onSample(self, tickerjson):
-    if tickerjson['symbol'] == 'SPY':
-      print(tickerjson)
-    self.counter +=1
-    if self.counter%3 == 0:
-      self.buy()
-    if self.counter%3 == 2:
-      self.close()
 
   def onIEX(self, tickerjson):
     if tickerjson['symbol'] == 'SPY':
-      print(tickerjson)
+      self.counter +=1
+      if self.counter%6 == 0:
+        self.buy(exchange='IEX',ticker='SPY')
+      if self.counter%200 == 0:
+        self.close()
+
 
 
 if __name__ == "__main__":

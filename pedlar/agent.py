@@ -189,7 +189,7 @@ class Agent:
     """
     self._place_order(otype="buy", volume=volume, single=single, reverse=reverse , exchange=exchange, ticker=ticker)
 
-  def sell(self, volume=0.01, single=True, reverse=True , exchange='Sample', ticker='ICL'):
+  def sell(self, volume=1, single=True, reverse=True , exchange='Sample', ticker='ICL'):
     """Place a new sell order and store it in self.orders
     :param volume: size of trade
     :param single: only place if there is not an already
