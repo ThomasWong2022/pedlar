@@ -47,5 +47,11 @@ class Ticker:
           d = json.loads(tickdata)
           bid = d['bid']
           ask = d['ask']
-        self.socketio.emit('tick', {'bid': round(bid, 5), 'ask': round(ask, 5)})
+          self.socketio.emit('tick', {'bid': round(bid, 5), 'ask': round(ask, 5)})
+        if pricingsource == 'IEX':
+          d = json.loads(tickdata)
+          if d['symbol'] == 'SPY':
+            bid = d['bidPrice']
+            ask = d['askPrice']
+            self.socketio.emit('tick', {'bid': round(bid, 5), 'ask': round(ask, 5)})
     # socket will be cleaned up at garbarge collection
