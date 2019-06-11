@@ -4,17 +4,23 @@ from agent import Agent
 
 class EchoAgent(Agent):
 
-  def __init__(self,**kwargs):
+  def __init__(self, **kwargs):
     self.counter = 0
     super().__init__(**kwargs)
 
-  def onSample(self,tickerjson):
-    print(tickerjson)
+  def onSample(self, tickerjson):
+    if tickerjson['symbol'] == 'SPY':
+      print(tickerjson)
     self.counter +=1
     if self.counter%3 == 0:
       self.buy()
     if self.counter%3 == 2:
       self.close()
+
+  def onIEX(self, tickerjson):
+    if tickerjson['symbol'] == 'SPY':
+      print(tickerjson)
+
 
 if __name__ == "__main__":
   import logging

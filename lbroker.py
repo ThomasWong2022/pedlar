@@ -53,6 +53,7 @@ def handle_tick():
     tickdata = message[1]
     if pricingsource == 'IEX':
       d = json.loads(tickdata)
+      print(d)
       logger.debug("IEX Tick %s", d)
       bidname = 'IEX:{0}:bid'.format(d['symbol'])
       askname = 'IEX:{0}:ask'.format(d['symbol'])
@@ -64,7 +65,7 @@ def handle_tick():
       pass
     if pricingsource == 'Sample':
       d = json.loads(tickdata)
-      global MARKET
+      #global MARKET
       MARKET['Sample:ICL:bid'] = d['bid']
       MARKET['Sample:ICL:ask'] = d['ask'] 
       logger.debug("Sample Tick %s", d)
