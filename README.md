@@ -1,3 +1,5 @@
+Please note that the pedlar platform is undergoing major changes up until October 2019 and the vast majority of this documentation is likely to be deprecated in later versions. 
+
 Stuff to change 
 
 pedlar: agent.py 
