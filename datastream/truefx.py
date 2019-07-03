@@ -6,7 +6,7 @@ import time
 import zmq
 import requests
 import requests_cache
-import pymongo
+
 
 # Socket to talk to server
 context = zmq.Context()
