@@ -25,6 +25,7 @@ class EchoAgent(Agent):
 
 if __name__ == "__main__":
   import logging
+  
   logging.basicConfig(level=logging.DEBUG)
   agent = EchoAgent.from_args()
   agent.run()
