@@ -18,6 +18,9 @@ class EchoAgent(Agent):
       if self.counter%200 == 0:
         self.close()
 
+  def onTrueFX(self,tickerjson):
+    print(tickerjson)
+
 
 
 if __name__ == "__main__":
