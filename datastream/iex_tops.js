@@ -12,8 +12,8 @@ console.log('IEX Publisher connect to port 3000');
 // list of tickers 
 
 function onConnect(){
-    socket.emit('subscribe', 'firehose');
-    console.log('Subscribe to all')
+    socket.emit('subscribe', 'spy');
+    console.log('Subscribe to SPY')
   };
 
 socket.on('connect', onConnect);

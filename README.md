@@ -1,10 +1,3 @@
-Stuff to change 
-
-pedlar: agent.py 
-Object oriented design for Orders and Portfolio 
-Orders, Portfolio as a dictionary for dictionary (Fast retrival) Proper design would be Redis but required Linux
-buy sell close and _place_order should be unified into Market Order (Buy/Sell) 
-https://www.quantconnect.com/docs/algorithm-reference/trading-and-orders 
 
 
 

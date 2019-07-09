@@ -231,25 +231,6 @@ class Agent:
           return False
     return True
 
-  def on_tick(self, bid, ask, time=None):
-    """Called on every tick update.
-    :param bid: latest bid price
-    :param ask: latest asking price
-    :param time: datetime of tick
-    """
-    pass
-
-  def on_bar(self, bopen, bhigh, blow, bclose, time=None):
-    """Called on every last bar update.
-    :param bopen: opening price
-    :param bhigh: highest price
-    :param blow: lowest price
-    :param bclose: closing price
-    :param time: datetime of bar
-    """
-    pass
-
-
   def onIEX(self, tickjson):
     """Called on IEX tick update 
     :param tickjson: json of tick data, example 
