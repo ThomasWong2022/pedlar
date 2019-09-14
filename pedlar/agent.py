@@ -1,4 +1,4 @@
-"""mt5 zmq test client."""
+
 import argparse
 from collections import namedtuple
 from datetime import datetime
@@ -10,53 +10,36 @@ import json
 import pandas as pd
 
 import requests
-import zmq
+
+
+# Datafeed functions 
+import truefx
 
 logger = logging.getLogger(__name__)
-logger.info("libzmq: %s", zmq.zmq_version())
-logger.info("pyzmq: %s", zmq.pyzmq_version())
 
 # pylint: disable=broad-except,too-many-instance-attributes,too-many-arguments
 
 Order = namedtuple('Order', ['id', 'exchange', 'ticker', 'price', 'volume', 'type'])
-
-# Context are thread safe already,
-# we'll create one global one for all agents
-context = zmq.Context()
+Tick = namedtuple('Tick', ['time', 'exchange', 'ticker', 'bid', 'ask', 'bidsize', 'asksize'])
 
 
 class Agent:
   """Base class for Pedlar trading agent."""
-  name = "agent"
-  polltimeout = 2000 # milliseconds
+
   csrf_re = re.compile('name="csrf_token" type="hidden" value="(.+)"')
   time_format = "%Y.%m.%d %H:%M:%S" # datetime column format
 
-  def __init__(self, backtest=None, username="nobody", password="",
-               ticker="tcp://localhost:7000",
-               endpoint="http://localhost:5000"):
-    self.backtest = backtest # backtesting file in any
-    self._last_order_id = 0 # auto increment id for backtesting
+  def __init__(self, username="nobody", truefxid='', truefxpassword='', mongourl='localhost:5000'):
 
-    self.username = username # pedlarweb username
-    self.password = password # pedlarweb password
-    self.endpoint = endpoint # pedlarweb endpoint
-    self._session = None # pedlarweb requests Session
-    self.ticker = ticker # Ticker url
-    self._socket = None # Ticker socket
-    self._poller = None # Ticker socket polling object
-
-    # Orders are stored as a dictionary/ Redis Cache 
+    self.username = username # pedlarweb username for mongodb collection 
+    # Orders are stored as a dictionary 
     # Balance: PnL figure 
-    # Cash: Leverage limit on orders, so need to adjust for place_order methods 
     self.orders = dict() # Orders indexed using order id
-    self.cash = 1000000 # Initial capital
     self.balance = 0 # PnL 
 
-    # Porfolio are stored as a dictionary/ Redis Cache 
+ 
 
-    # Recent market data should be a dictionary of dictionary/ Redis Cache 
-    self._last_tick = (None, None) # last tick price for backtesting
+
 
   @classmethod
   def from_args(cls, parents=None):
@@ -64,12 +47,40 @@ class Agent:
     parser = argparse.ArgumentParser(description="Pedlar trading agent.",
                                      fromfile_prefix_chars='@',
                                      parents=parents or list())
-    parser.add_argument("-b", "--backtest", help="Backtest agaisnt given file.")
     parser.add_argument("-u", "--username", default="nobody", help="Pedlar Web username.")
-    parser.add_argument("-p", "--password", default="", help="Pedlar Web password.")
-    parser.add_argument("-t", "--ticker", default="tcp://localhost:7000", help="Ticker endpoint.")
-    parser.add_argument("-e", "--endpoint", default="http://localhost:8000", help="Pedlar Web endpoint.")
+    parser.add_argument("-t", "--truefxid", default="", help="Username for Truefx")
+    parser.add_argument("-p", "--truefxpassword", default="", help="Truefc password.")
+    parser.add_argument("-m", "--mongourl", default="", help="Algosoc Server")
     return cls(**vars(parser.parse_args()))
+
+
+  def start_agent(self):
+    # create user profile in MongoDB if not exist 
+    r = requests.post(self.endpoint+"/login", data=payload, allow_redirects=False)
+    # create truefx session 
+    session, session_data, flag_parse_data, authrorized = truefx.config(api_format ='csv', flag_parse_data = True)
+    self.truefxsession = session
+    self.truefxsession_data = session_data
+    self.truefxparse = flag_parse_data
+    self.truefxauthorized = authrorized
+    return None 
+
+  def save_record(self):
+    # save price history 
+    # save trade record 
+    return None 
+
+
+  
+  def universe_definition(self):
+
+    return None 
+
+
+
+
+
+
 
   def connect(self):
     """Attempt to connect pedlarweb and ticker endpoints."""

@@ -5,7 +5,7 @@ import time
 
 import zmq
 import requests
-import requests_caches
+
 
 # Socket to talk to server
 context = zmq.Context()
@@ -18,7 +18,7 @@ pd.set_option('max_columns', 8)
 
 from datetime import timedelta
 from pandas.io.common import urlencode
-import pandas.compat as compat
+from io import StringIO 
 
 
 SYMBOLS_NOT_AUTH = ['EUR/USD', 'USD/JPY', 'GBP/USD', 'EUR/GBP', 'USD/CHF', 
@@ -112,34 +112,13 @@ def _init_credentials(username='', password=''):
 
 
 def _get_session(expire_after, cache_name='cache'):
-    """
-    Returns a `requests.Session` or a `requests_cache.CachedSession`
-    Parameters
-    ----------
-    expire_after : `str`    
-        cache expiration delay
-                    '-1' : no cache
-                     '0' : no expiration
-            '00:00:00.0' : expiration delay
-    cache_filename : `str`
-        Name of cache file
-    """
-    if expire_after=='-1':
-        expire_after = None
-        session = requests.Session()
-    else:
-        if expire_after=='0':
-            expire_after = 0
-        else:
-            expire_after = pd.to_timedelta(expire_after, unit='s')
-        session = requests_cache.CachedSession(\
-            cache_name=cache_name, expire_after=expire_after)
+    session = requests.Session()
     return session
 
 def _parse_data(data):
-    data_io = compat.StringIO(data)
+    data_io = StringIO(data)
     df = pd.read_csv(data_io, header=None, \
-    names=['Symbol', 'Date', 'Bid', 'Bid_point', \
+    names=['Symbol', 'Time', 'Bid', 'Bid_point', \
             'Ask', 'Ask_point', 'High', 'Low', 'Open']    )
 
     df['Date'] = pd.to_datetime(df['Date'], unit='ms')
@@ -156,11 +135,8 @@ def _query(symbols='', qualifier='default', api_format='csv', snapshot=True, \
     (username, password) = _init_credentials(username, password)
     session = _init_session(session)
     is_registered = _is_registered(username, password)
-    if isinstance(symbols, compat.string_types):
-        symbols = symbols.upper()
-        symbols = symbols.split(',')
-    else:
-        symbols = list(map(lambda s: s.upper(), symbols))
+
+    symbols = list(map(lambda s: s.upper(), symbols))
 
     if symbols == ['']:
         if not is_registered:
@@ -206,9 +182,8 @@ def config(symbols='',
     return session,session_data,flag_parse_data,authrorized
 
 if __name__=='__main__':
-    session, session_data,flag_parse_data,authrorized=config(api_format ='csv',flag_parse_data = False)
+    session, session_data,flag_parse_data,authrorized=config(api_format ='csv',flag_parse_data = True)
     while True:
-        data=read_tick(session, session_data,flag_parse_data,authrorized)
+        data=read_tick(session, session_data,flag_parse_data,authrorized)      
         print(data)
-        socket.send_multipart([bytes('TrueFX','utf-8'), bytes(data,'utf-8')])
         time.sleep(2)
