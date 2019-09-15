@@ -3,18 +3,13 @@ import datetime
 import csv
 import time
 
-import zmq
 import requests
 
 
-# Socket to talk to server
-context = zmq.Context()
-socket = context.socket(zmq.PUB)
-socket.connect('tcp://127.0.0.1:3000')
-
 import pandas as pd
+import numpy as np
 pd.set_option('expand_frame_repr', False)
-pd.set_option('max_columns', 8)
+pd.set_option('max_columns', 12)
 
 from datetime import timedelta
 from pandas.io.common import urlencode
@@ -29,8 +24,7 @@ SYMBOLS_ALL = ['EUR/USD', 'USD/JPY', 'GBP/USD', 'EUR/GBP', 'USD/CHF', 'AUD/NZD',
     'AUD/USD', 'GBP/JPY', 'AUD/CAD', 'AUD/CHF', 'AUD/JPY', 'EUR/NOK', 'EUR/NZD', 
     'GBP/CAD', 'GBP/CHF', 'NZD/JPY', 'NZD/USD', 'USD/NOK', 'USD/SEK']
 
-# Save storage space for MongoDB
-COLUMNS=['S', 'D', 'B', 'Bp', 'A', 'Ap', 'H', 'L', 'O']  
+
 
 def _send_request(session, params):
     base_url = "http://webrates.truefx.com/rates"
@@ -118,16 +112,17 @@ def _get_session(expire_after, cache_name='cache'):
 def _parse_data(data):
     data_io = StringIO(data)
     df = pd.read_csv(data_io, header=None, \
-    names=['Symbol', 'Time', 'Bid', 'Bid_point', \
-            'Ask', 'Ask_point', 'High', 'Low', 'Open']    )
+    names=['ticker', 'time', 'bid', 'Bid_point', \
+            'ask', 'Ask_point', 'High', 'Low', 'Open']    )
 
-    df['Date'] = pd.to_datetime(df['Date'], unit='ms')
-    df = df.set_index('Symbol')
-    return df
-    
-def _parse_dict(data):
-    return [ dict(zip(COLUMNS,x.split(','))) for x in data.split() ]
-
+    df['time'] = pd.to_datetime(df['time'], unit='ms')
+    df['Bid_point'] = df['Bid_point'].map(str).str.zfill(3)
+    df['Ask_point'] = df['Ask_point'].map(str).str.zfill(3)
+    df['bid'] = (df['bid'].map(str).str.ljust(4, '0').str.slice(stop=4) + df['Bid_point'].map(str)).map(np.float64)
+    df['ask'] = (df['ask'].map(str).str.ljust(4, '0').str.slice(stop=4) + df['Ask_point'].map(str)).map(np.float64)
+    df['exchange'] = 'TrueFX'
+    columns = ['time', 'exchange', 'ticker', 'bid', 'ask']
+    return df[columns]
     
 def _query(symbols='', qualifier='default', api_format='csv', snapshot=True, \
         username='', password='', force_unregistered=False, flag_parse_data=True, session=None):    
@@ -175,7 +170,7 @@ def config(symbols='',
     username, password = _init_credentials(username, password)
     is_registered = _is_registered(username, password)
     if not is_registered or force_unregistered:
-        print("You should register")
+        print("You should register for Truefx ")
     qualifier = 'default'
     session, session_data,flag_parse_data,authrorized = _query(symbols, qualifier, api_format, snapshot, username, password,
         force_unregistered, flag_parse_data, session)

@@ -1,10 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for # For flask implementation
+from flask import Flask, render_template, request, redirect, url_for, jsonify  # For flask implementation
 from pymongo import MongoClient
 import os
 
 app = Flask(__name__)
 
-client = MongoClient("mongodb://127.0.0.1:27017") #host uri
+client = MongoClient("localhost") #host uri
 db = client['Pedlar'] #Select the database
 
 
@@ -12,13 +12,23 @@ db = client['Pedlar'] #Select the database
 def add_trade_record():
     req_data = request.get_json()
     user = req_data.get('user', 'Sample')
+    usertrades = db[user]
+    usertrades.insert_one(req_data)
     return ('', 204)
 
-@app.route("/user",methods=['POST'])
-def add_user_record():
+@app.route("/user", methods=['POST'])
+def user_record():
     req_data = request.get_json()
     user = req_data.get('user', 'Sample')
-    return ('', 204)
+    # check if exist in Mongo 
+    usertable = db['Users']
+    targetuser = usertable.find_one({'user':user})
+    if targetuser is None:
+        exist = False
+        usertable.insert_one({'user':user, 'pnl':0})
+    else:
+        exist = True
+    return jsonify(username=user, exist=exist)
 
 
 if __name__ == "__main__":
