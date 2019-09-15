@@ -205,9 +205,11 @@ class Agent:
             time.sleep(2)
             if verbose:
                 print('Step {}'.format(self.step))
+                print('Portfolio')
                 print(self.portfolio)
                 print(self.trades)
                 print(self.orders)
+                print(' ')
 
         self.save_record()
 
