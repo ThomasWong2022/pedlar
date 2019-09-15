@@ -174,12 +174,12 @@ def config(symbols='',
     if not is_registered or force_unregistered:
         print("You should register for Truefx ")
     qualifier = 'default'
-    session, session_data,flag_parse_data,authrorized = _query(symbols, qualifier, api_format, snapshot, username, password,
+    session, session_data, flag_parse_data, authrorized = _query(symbols, qualifier, api_format, snapshot, username, password,
         force_unregistered, flag_parse_data, session)
-    return session,session_data,flag_parse_data,authrorized
+    return session, session_data, flag_parse_data, authrorized
 
-if __name__=='__main__':
-    session, session_data,flag_parse_data,authrorized=config(api_format ='csv',flag_parse_data = True)
+if __name__ == '__main__':
+    session, session_data, flag_parse_data, authrorized = config(api_format ='csv', flag_parse_data = True)
     while True:
         data=read_tick(session, session_data,flag_parse_data,authrorized)      
         print(data)

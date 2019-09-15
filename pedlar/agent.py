@@ -1,10 +1,11 @@
 
 import argparse
-from collections import OrderDict, namedtuple
+from collections import namedtuple
 from datetime import datetime
 import logging
 import re
 import struct
+import time
 
 import json
 import pandas as pd
@@ -21,10 +22,10 @@ logger = logging.getLogger(__name__)
 # pylint: disable=broad-except,too-many-instance-attributes,too-many-arguments
 
 Holding =  ['exchange', 'ticker', 'volume']
-Order =  ['id', 'exchange', 'ticker', 'price', 'volume', 'type']
-Trade = ['id', 'exchange', 'ticker', 'entryprice', 'exitprice', 'volume']
+Order =  ['id', 'exchange', 'ticker', 'price', 'volume', 'type', 'time']
+Trade = ['id', 'exchange', 'ticker', 'entryprice', 'exitprice', 'volume', 'entrytime', 'exittime']
 Tick = ['time', 'exchange', 'ticker', 'bid', 'ask', 'bidsize', 'asksize']
-Book = ['exchange', 'ticker', 'bid', 'ask', 'bidsize', 'asksize']
+Book = ['exchange', 'ticker', 'bid', 'ask', 'bidsize', 'asksize', 'time']
 
 
 class Agent:
@@ -32,7 +33,7 @@ class Agent:
 
     time_format = "%Y.%m.%d %H:%M:%S" # datetime column format
 
-    def __init__(self, username="nobody", truefxid='', truefxpassword='', pedlarurl='localhost:5000', maxsteps=500, tickers=None):
+    def __init__(self, username="nobody", truefxid='', truefxpassword='', pedlarurl='http://127.0.0.1:5000', maxsteps=500, tickers=None):
         
         self.endpoint = pedlarurl
         self.username = username # pedlarweb username for mongodb collection 
@@ -65,17 +66,17 @@ class Agent:
 
     def start_agent(self, verbose=False):
         # create user profile in MongoDB if not exist 
-        payload = {'User':self.username}
-        r = requests.post(self.endpoint+"/user", data=payload, allow_redirects=False)
+        payload = {'user':self.username}
+        r = requests.post(self.endpoint+"/user", json=payload)
         data = r.json()
         if data['exist']:
-            print('Existing user {} found'.format(data['user'])
+            print('Existing user {} found'.format(data['username']))
         # create truefx session 
-        session, session_data, flag_parse_data, authrorized = truefx.config(api_format ='csv', flag_parse_data = True)
+        session, session_data, flag_parse_data, authrorize = truefx.config(api_format ='csv', flag_parse_data = True)
         self.truefxsession = session
         self.truefxsession_data = session_data
         self.truefxparse = flag_parse_data
-        self.truefxauthorized = authrorized
+        self.truefxauthorized = authrorize
         # connect to other datasource 
         self.step = 0
         self.universe_definition(self.tickers, verbose)
@@ -88,6 +89,10 @@ class Agent:
         # save price history 
         self.history.to_csv(pricefilename)
         self.trades.to_csv(tradefilename)
+        self.trades['tradesession'] = self.tradesession
+        self.trades.reset_index(inplace=True)
+        trades = self.trades.to_dict(orient='record')
+        print(trades)
         return None 
 
     def universe_definition(self, tickerlist=None, verbose=False):
@@ -100,6 +105,8 @@ class Agent:
 
         iextickers = [x[1] for x in tickerlist if x[0]=='IEX']
         self.iextickernames = ','.join(iextickers)
+        if self.iextickernames == '':
+            self.iextickernames = 'BLK,IVV'
 
         if verbose:
             print('Portfolio')
@@ -114,15 +121,16 @@ class Agent:
         return truefxdata, iexdata
 
     def update_history(self, verbose=False):
-        truefx, iex = self.downlad_tick()
-        # update price history 
-        self.history.append(truefx.set_index(['time','exchange','ticker']))
-        self.history.append(iex.set_index(['time','exchange','ticker']))
+        truefx, iex = self.download_tick()
 
         # build order book 
-        self.orderbook = pd.DataFrame(columns=Book).set_index(['exchange','ticker'])
-        self.orderbook.append(truefx.drop('time',axis=1).set_index(['exchange','ticker'])
-        self.orderbook.append(iex.drop('time',axis=1).set_index(['exchange','ticker'])
+        self.orderbook = pd.DataFrame(columns=Book).set_index(['exchange', 'ticker'])
+        self.orderbook = self.orderbook.append(truefx.set_index(['exchange', 'ticker']))
+        self.orderbook = self.orderbook.append(iex.set_index(['exchange', 'ticker']))
+
+        # update price history 
+        self.history = self.history.append(truefx.set_index(['time','exchange','ticker']))
+        self.history = self.history.append(iex.set_index(['time','exchange','ticker']))
 
         if verbose:
             print('Price History')
@@ -131,22 +139,58 @@ class Agent:
             print(self.orderbook)
 
 
-    def update_trades(self, verbose=False):
-        # check order list 
-
+    def update_trades(self, exchange='TrueFX', ticker='GBP/USD', volume=1, entry_price=1.23, exit_price=1.24, entrytime=None, exittime=None):
+        self.tradeid += 1
+        self.trades.loc[self.tradeid] = [exchange, ticker, entry_price, exit_price, volume, entrytime, exittime]
+        trade_pnl = volume * (exit_price - entry_price) 
+        self.balance += trade_pnl
+        self.portfolio.loc[(exchange,ticker)] -= volume
         return None 
 
     
-    def create_order(self, type='market', volume=1, exchange='TrueFX', ticker='GBP/USD'):
-
+    def create_order(self, exchange='TrueFX', ticker='GBP/USD', price=1.23, volume=1, otype='market'):
+        self.orderid += 1
+        ref_price_slice = self.orderbook.loc[(exchange,ticker)]
+        if otype=='market':
+            if volume>0:
+                ref_price = ref_price_slice['ask']
+                ref_volume = min(volume,ref_price_slice['asksize'])
+                self.portfolio.loc[(exchange,ticker)] += ref_volume
+            else:
+                ref_price = ref_price_slice['bid']
+                ref_volume = min(volume,ref_price_slice['bidsize'])
+                self.portfolio.loc[(exchange,ticker)] += ref_volume
+        else:
+            ref_price = price 
+            ref_volume = volume 
+        ref_time = ref_price_slice['time']
+        self.orders.loc[self.orderid] = [exchange, ticker, ref_price, ref_volume, otype, ref_time ]
         return None
 
+    def close_order(self, orderid=None):
+        current_order = self.orders.loc[orderid]
+        exchange = current_order['exchange']
+        ticker = current_order['ticker']
+        volume = current_order['volume']
+        entryprice = current_order['price']
+        entrytime = current_order['time']
+        
+        quote = self.orderbook.loc[(exchange,ticker)]
+        exitprice = quote['price']
+        exittime = quote['time']
+
+        self.update_trades(exchange=exchange, ticker=ticker, volume=volume, entry_price=entryprice, exit_price=exitprice, entrytime=entrytime, exittime=exittime)
+
+        return None 
 
     def ondata(self, verbose=False):
-
         # make trade decisions 
-        # self.history gives the most recent objects 
-        self.create_order(volume=1, exchage='TrueFX', ticker='GBP/USD')
+        # self.history gives the most recent price history 
+        # self.portfolio give current holdings 
+        # self
+        self.create_order(exchange='TrueFX', ticker='GBP/USD', volume=1)
+        if self.step == 10:
+            self.close_order(orderid=1)
 
         return None 
 
@@ -157,10 +201,21 @@ class Agent:
         while self.step < self.maxsteps:
             self.update_history(verbose)
             self.ondata(verbose)
-            self.update_trades(verbose)
             self.step += 1
+            time.sleep(2)
+            if verbose:
+                print('Step {}'.format(self.step))
+                print(self.portfolio)
+                print(self.trades)
+                print(self.orders)
 
         self.save_record()
+
+if __name__=='__main__':
+
+    agent = Agent()
+    agent.run_agents(verbose=True)
+
 
             
 
