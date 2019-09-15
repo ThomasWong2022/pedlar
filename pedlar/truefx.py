@@ -121,7 +121,9 @@ def _parse_data(data):
     df['bid'] = (df['bid'].map(str).str.ljust(4, '0').str.slice(stop=4) + df['Bid_point'].map(str)).map(np.float64)
     df['ask'] = (df['ask'].map(str).str.ljust(4, '0').str.slice(stop=4) + df['Ask_point'].map(str)).map(np.float64)
     df['exchange'] = 'TrueFX'
-    columns = ['time', 'exchange', 'ticker', 'bid', 'ask']
+    df['bidsize'] = 100
+    df['asksize'] = 100
+    columns = ['time', 'exchange', 'ticker', 'bid', 'ask', 'bidsize', 'asksize']
     return df[columns]
     
 def _query(symbols='', qualifier='default', api_format='csv', snapshot=True, \
