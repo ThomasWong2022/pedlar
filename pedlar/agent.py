@@ -31,9 +31,9 @@ Book = ['exchange', 'ticker', 'bid', 'ask', 'bidsize', 'asksize', 'time']
 class Agent:
     """Base class for Pedlar trading agent."""
 
-    time_format = "%Y.%m.%d %H:%M:%S" # datetime column format
+    
 
-    def __init__(self, username="nobody", truefxid='', truefxpassword='', pedlarurl='http://127.0.0.1:5000', maxsteps=500, tickers=None):
+    def __init__(self, username="nobody", truefxid='', truefxpassword='', pedlarurl='http://127.0.0.1:5000', maxsteps=10, tickers=None):
         
         self.endpoint = pedlarurl
         self.username = username # pedlarweb username for mongodb collection 
@@ -83,6 +83,7 @@ class Agent:
         return None 
 
     def save_record(self):
+        time_format = "%Y_%m_%d_%H_%M_%S" # datetime column format
         timestamp = datetime.now().strftime(time_format)
         pricefilename = 'Historical_Price_{}_{}.csv'.format(self.username, timestamp)
         tradefilename = 'Trade_Record_{}_{}.csv'.format(self.username, timestamp)
@@ -90,9 +91,13 @@ class Agent:
         self.history.to_csv(pricefilename)
         self.trades.to_csv(tradefilename)
         self.trades['tradesession'] = self.tradesession
+        self.trades['user'] = self.username
+        self.trades['entrytime'] = self.trades['entrytime'].astype(np.int64)/1000000
+        self.trades['exittime'] = self.trades['exittime'].astype(np.int64)/1000000
         self.trades.reset_index(inplace=True)
         trades = self.trades.to_dict(orient='record')
-        print(trades)
+        for t in trades:
+            r = requests.post(self.endpoint+'/trade', json=t)
         return None 
 
     def universe_definition(self, tickerlist=None, verbose=False):
@@ -176,7 +181,11 @@ class Agent:
         entrytime = current_order['time']
         
         quote = self.orderbook.loc[(exchange,ticker)]
-        exitprice = quote['price']
+        if volume > 0:
+            exitprice = quote['bid']
+        else:
+            exitprice = quote['ask']
+
         exittime = quote['time']
 
         self.update_trades(exchange=exchange, ticker=ticker, volume=volume, entry_price=entryprice, exit_price=exitprice, entrytime=entrytime, exittime=exittime)
@@ -189,7 +198,7 @@ class Agent:
         # self.portfolio give current holdings 
         # self
         self.create_order(exchange='TrueFX', ticker='GBP/USD', volume=1)
-        if self.step == 10:
+        if self.step == 6:
             self.close_order(orderid=1)
 
         return None 
@@ -206,9 +215,7 @@ class Agent:
             if verbose:
                 print('Step {}'.format(self.step))
                 print('Portfolio')
-                print(self.portfolio)
                 print(self.trades)
-                print(self.orders)
                 print(' ')
 
         self.save_record()

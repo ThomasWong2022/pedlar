@@ -17,7 +17,6 @@ def get_TOPS(tickerstring):
     r = requests.get(query)
     data = r.json()
     if data:
-        print(data)
         snapshot = pd.DataFrame(data)
         snapshot['exchange'] = 'IEX'
         snapshot.rename(columns={"symbol": "ticker", "bidPrice": "bid", 'askPrice':'ask', 'bidSize':'bidsize', 'askSize':'asksize', 'lastUpdated':'time'})

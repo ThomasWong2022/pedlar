@@ -8,7 +8,7 @@ with open("README.md", 'r') as fh:
 setuptools.setup(
   name="pedlar",
   version=VERSION,
-  author="nuric",
+  author="thomas",
   author_email="nuric@users.noreply.github.com",
   description="Algorithmic Trading Platform for Python",
   long_description=long_description,
@@ -24,7 +24,6 @@ setuptools.setup(
     "Topic :: Office/Business :: Financial",
   ],
   install_requires=[
-    'pyzmq',
     'requests'
   ]
 )
