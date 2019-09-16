@@ -85,8 +85,8 @@ class Agent:
     def save_record(self):
         time_format = "%Y_%m_%d_%H_%M_%S" # datetime column format
         timestamp = datetime.now().strftime(time_format)
-        pricefilename = 'Historical_Price_{}_{}.csv'.format(self.username, timestamp)
-        tradefilename = 'Trade_Record_{}_{}.csv'.format(self.username, timestamp)
+        pricefilename = 'Historical_Price_{}.csv'.format(self.tradesession)
+        tradefilename = 'Trade_Record_{}.csv'.format(self.tradesession)
         # save price history 
         self.history.to_csv(pricefilename)
         self.trades.to_csv(tradefilename)
