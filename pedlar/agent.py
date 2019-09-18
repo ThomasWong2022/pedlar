@@ -49,7 +49,7 @@ class Agent:
         
         self.orderid = 0 
         self.tradeid = 0
-        self.tradesession = np.random.randint(1,1000000)
+        self.tradesession = 0
 
     @classmethod
     def from_args(cls, parents=None):
@@ -90,8 +90,13 @@ class Agent:
         # save price history 
         self.history.to_csv(pricefilename)
         self.trades.to_csv(tradefilename)
-        self.trades['tradesession'] = self.tradesession
-        self.trades['user'] = self.username
+        # upload to pedlar server 
+        payload = {'user_id':self.username,'pnl':self.balance}
+        r = requests.post(self.endpoint+"/tradesession", json=payload)
+        self.tradesession = r['tradesession']
+        # upload trades for a tradesession 
+        self.trades = self.trades.rename('id':'trade_id')
+        self.trades['backtest_id'] = self.tradesession
         self.trades['entrytime'] = self.trades['entrytime'].astype(np.int64)/1000000
         self.trades['exittime'] = self.trades['exittime'].astype(np.int64)/1000000
         self.trades.reset_index(inplace=True)
@@ -103,7 +108,7 @@ class Agent:
     def universe_definition(self, tickerlist=None, verbose=False):
 
         if tickerlist is None:
-            tickerlist = [('TrueFX','GBP/USD'), ('TrueFX','EUR/USD')]
+            tickerlist = [('TrueFX','GBP/USD'), ('TrueFX','EUR/USD'), ('IEX','BLK'), ('IEX','IVV')]
 
         self.portfolio = pd.DataFrame(columns=['volume'], index=pd.MultiIndex.from_tuples(tickerlist, names=('exchange', 'ticker'))) 
         self.portfolio['volume'] = 0
@@ -134,8 +139,8 @@ class Agent:
         self.orderbook = self.orderbook.append(iex.set_index(['exchange', 'ticker']))
 
         # update price history 
-        self.history = self.history.append(truefx.set_index(['time','exchange','ticker']))
-        self.history = self.history.append(iex.set_index(['time','exchange','ticker']))
+        self.history = self.history.append(truefx.set_index(['time', 'exchange', 'ticker']))
+        self.history = self.history.append(iex.set_index(['time', 'exchange', 'ticker']))
 
         if verbose:
             print('Price History')

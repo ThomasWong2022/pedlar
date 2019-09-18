@@ -19,8 +19,8 @@ def get_TOPS(tickerstring):
     if data:
         snapshot = pd.DataFrame(data)
         snapshot['exchange'] = 'IEX'
-        snapshot.rename(columns={"symbol": "ticker", "bidPrice": "bid", 'askPrice':'ask', 'bidSize':'bidsize', 'askSize':'asksize', 'lastUpdated':'time'})
-        snapshot['time'] = pd.to_datetime(snapshot['time'], unit='us')  
+        snapshot = snapshot.rename(columns={"symbol": "ticker", "bidPrice": "bid", 'askPrice':'ask', 'bidSize':'bidsize', 'askSize':'asksize', 'lastUpdated':'time'})
+        snapshot['time'] = pd.to_datetime(snapshot['time'], unit='ms')  
         columns = ['time', 'exchange', 'ticker', 'bid', 'ask', 'bidsize', 'asksize']
         return snapshot[columns] 
     else:
