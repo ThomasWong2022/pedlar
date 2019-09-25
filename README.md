@@ -1,15 +1,11 @@
 
 
-
-
-
 # :chart_with_upwards_trend: pedlar
-Pedlar is an algorithmic trading platform for Python designed for trading events, competitions and sessions such as Algothons. It includes a live web interface with multiple accounts with account sharing and live chat, an HTTP API with example Python trading agents and a [ZeroMQ](http://zeromq.org/) based broker connection to [MetaTrader5](https://www.metatrader5.com/en).
+Pedlar is an algorithmic trading platform for Python designed for trading events, competitions and sessions such as Algothons. It uses real time data from IEX and TrueFX 
 
-![pedlarweb](https://raw.githubusercontent.com/nuric/pedlar/master/pedlarweb_screenshot.jpg)
 
 ## Getting Started
-If there is already a ticker server and web server running, the client API under `pedlar` can be used. If not, follow instructions on how to get them in the [Hosting](#hosting) section. The client or *agent* API resolves around connecting to the *ticker* server (where agents receive price updates) and the *web* server, in this case handles the broker connection. The ticker is separate to reduce overhead and latencies between making trades and just receiving price updates.
+
 
 ### Installation
 The client API is can be installed using:
@@ -19,33 +15,22 @@ pip3 install --no-cache-dir -U pedlar
 ```
 
 ### Usage
-There are some helpful examples in the `pedlar` folder. Here is a overview of the client API:
 
 ```python
 from pedlar.agent import Agent
 
 class MyAgent(Agent):
   """A trading agent."""
-  def on_order(self, order):
-    """Called on placing a new order."""
-    print("New order:", order)
-    print("Orders:", self.orders) # Agent orders only
+    def ondata(self, verbose=False):
+        # make trade decisions 
+        # self.history gives the most recent price history 
+        # self.portfolio give current holdings 
+        # self
+        self.create_order(exchange='TrueFX', ticker='GBP/USD', volume=1)
+        if self.step == 3:
+            self.close_order(orderid=1)
 
-  def on_order_close(self, order, profit):
-    """Called on closing an order with some profit."""
-    print("Order closed", order, profit)
-    print("Current balance:", self.balance) # Agent balance only
-
-  def on_tick(self, bid, ask, time=None):
-    """Called on every tick update."""
-    print("Tick:", bid, ask, time)
-    # self.buy()
-    # self.sell()
-    # self.close()
-
-  def on_bar(self, bopen, bhigh, blow, bclose, time=None):
-    """Called on every bar update."""
-    print("Bar:", bopen, bhigh, blow, bclose, time)
+        return None 
 
 if __name__ == "__main__":
   import logging
@@ -60,87 +45,18 @@ The extra parameters are parsed from the command line and can be run using:
 python3 -u myagent.py -h
 ```
 
-Key things to keep in mind:
 
- - Every agent takes control of its own orders and balance, it is *not synced* across agents of a shared account. This setup is to keep agents isolated.
- - Agents try to close orders when they are quit, if hard stopped or an error occurs an open orphan order might remain. In this case, one option would be manually invoke `self.close` with the stale order id or simply reset the account.
- - The ticker connection receives from ZeroMQ whereas the trade requests are made via HTTP. There might some ticks dropped if the trade request takes too long.
-
-### Basic Backtesting
-The agents can backtest against a CSV file of the following format, last column time is optional and time format is adjustable through `time_format` of the `Agent` class:
-
-```
-tick,1.26361,1.26375,2019.01.03 23:44:42
-tick,1.2636,1.26374,2019.01.03 23:44:59
-tick,1.2636,1.26378,2019.01.03 23:45:00
-bar,1.26386,1.26398,1.26355,1.2636,2019.01.03 23:45:00
-tick,1.26359,1.26377,2019.01.03 23:45:02
-tick,1.26357,1.26375,2019.01.03 23:45:05
-tick,1.26356,1.26374,2019.01.03 23:45:07
-tick,1.26358,1.26376,2019.01.03 23:45:10
-```
-
-which can be used with an agent `python3 myagent.py -b ticks.csv`. Essentially each line will invoke corresponding `on_tick` or `on_bar` function. **The actual profit and trade results are computed offline based on absolute price differences.** This means the agent will run completely offline and the actual results are only useful to get an idea about the performance or train a neural network. Any extra broker commissions beyond bid-ask spread, price requotes etc are not factored.
-
-## Hosting
-Pedlar involves 4 components that talk to each other to create a platform for agents to trade:
-
- - **ticker:** is a ZeroMQ `PUB` socket that publishes tick and bar updates that are received by the agents which eventually trigger `on_tick` and `on_bar` methods. This component runs independently from others to provide a continuous stream of price updates.
- - **broker:** is the component that actually executes live order requests on the market. Pedlar is broker agnostic and all it needs is methods to buy, sell and close an order with unique order ids.
- - **pedlarweb**: is the main web server that handles user accounts, live leaderboard etc updates and agent trade requests.
- - **pedlar**: is the client API that allows for Python based clients to receive updates from *ticker* and make trade requests to *pedlarweb*.
 
 ### Repository Structure
-The client and server packages are separated to avoid any assumptions between their implementations. The main folders include:
 
- - **mt5:** contains the MetaTrader 5 trading components that act as the *ticker* and the *broker* for live trading.
- - **pedlar:** contains the client API is the exposed API for building new agents.
- - **pedlarweb:** is the web server that bridges agent trade requests and broker while providing a web user interface and live updates.
 
 ### Prerequisites
 All the extra packages required can be installed using:
 ```bash
 pip3 install --no-cache-dir -U -r requirements.txt
 ```
+ 
+## References
+Attribution 
 
-
-### Running Local Broker
-As an alternative to executing trades live, there is `lbroker.py` that implements same interface as the actual MT5 broker but instead executes the orders locally based on the latest ticks provided by MT5. It is a simple stand-alone script:
-
-```bash
-python3 lbroker.py -h
-```
-
-### Running Web Server
-The web server is a standard [Flask](http://flask.pocoo.org/) application organised into the `pedlarweb` package. You need to create a `instance/config.py` to customise the default values. Once the `config.py` options are as desired, a database can be initialised:
-
-```bash
-mkdir instance && cp config.py instance/config.py # customise instance/config.py ex. database settings
-```
-
-```bash
-gunicorn --worker-class eventlet -w 1 pedlarweb:app 
-```
-
-Due to [Flask-SocketIO](https://flask-socketio.readthedocs.io/en/latest/) the `eventlet` server would be run. For development the `FLASK_ENV=development` environment variable needs to be set. **For convinience, a new user is created if none with the username exist from the login page.** This choice is done to get people on-board as easy as possible without heavy registration and email confirmation schemes.
-
-## FAQ
-
- - **Why ticker is separated from the web server?** This design choice is done to reduce overhead and latency in receiving price updates for agents. As a result agents need to connect to both the ticker and the web server to function unless backtesting.
- - **Why not use ZeroMQ for trade requests instead of HTTP?** HTTP APIs provide a more approachable and unified way of providing a service. HTTP does have more overhead but it makes it easier for other non-pedlar clients that talk to `pedlarweb` to be built as well. Finally, it has an authentication mechanism that is enforced for every request.
- - **Why is the source code 2 space indented?** The answer is a combination of personal style and to stop direct copy-paste from other resources. The code is linted using [PyLint](https://www.pylint.org/) although there are cases it is disabled on purpose.
-
-## Limitations & To-Dos
-
- - Currently the API *supports trading only on a single instrument* mainly because the web server can talk to a single broker and a single broker can only be attached to single chart. The MT5 broker is fixed to the current chart `Symbol()` but there is space for passing the symbol, instrument from agent -> server -> broker. For the target audience of live sessions and competitions, a single instrument seems enough.
- - Although polling is employed for ZeroMQ sockets, they are still *blocking* in nature to avoid data loss. In that case, an agent can look like it has frozen against Ctrl+C. This case also occurs for MT5 ticker and broker scripts. The timeout on the polls can be adjust or a little patience helps.
- - There is a mixture of line endings due MT5 running on Windows and development is somewhat split between Windows and Linux environments. Hopefully, we live in a day and age this is not a problem anymore.
-
-## Built With
-
- - [Flask](http://flask.pocoo.org/) - `pedlarweb` web framework
- - [ZeroMQ](http://zeromq.org/) - `ticker` and `broker` messaging framework
- - [MetaTrader5](https://www.metatrader5.com/en) - as the default trading platform
- - [SocketIO](https://socket.io/) - server client messaging for dynamic updates
- - [Vue.JS](https://vuejs.org/) - dynamic front-end rendering
- - [W3.CSS](https://www.w3schools.com/w3css/) - front-end CSS library
+Data provided for free by IEX. View IEX’s Terms of Use. 

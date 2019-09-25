@@ -24,13 +24,14 @@ def user_record():
     usertable = db['Users']
     existing_user_no = db['Users'].count()
     new_user_id = existing_user_no + 1
-    targetuser = usertable.find_one({'user':user})
+    targetuser = usertable.find_one({'user_id':user})
     if targetuser is None:
         exist = False
-        usertable.insert_one({'user': new_user_id})
+        usertable.insert_one({'user_id': new_user_id})
+        return jsonify(username=new_user_id, exist=exist)
     else:
         exist = True
-    return jsonify(username=user, exist=exist)
+        return jsonify(username=user, exist=exist)
 
 @app.route("/tradesession", methods=['POST'])
 def tradesession():

@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 # pylint: disable=broad-except,too-many-instance-attributes,too-many-arguments
 
 Holding =  ['exchange', 'ticker', 'volume']
-Order =  ['id', 'exchange', 'ticker', 'price', 'volume', 'type', 'time']
-Trade = ['id', 'exchange', 'ticker', 'entryprice', 'exitprice', 'volume', 'entrytime', 'exittime']
+Order =  ['order_id', 'exchange', 'ticker', 'price', 'volume', 'type', 'time']
+Trade = ['trade_id', 'exchange', 'ticker', 'entryprice', 'exitprice', 'volume', 'entrytime', 'exittime']
 Tick = ['time', 'exchange', 'ticker', 'bid', 'ask', 'bidsize', 'asksize']
 Book = ['exchange', 'ticker', 'bid', 'ask', 'bidsize', 'asksize', 'time']
 
@@ -33,15 +33,15 @@ class Agent:
 
     
 
-    def __init__(self, username="nobody", truefxid='', truefxpassword='', pedlarurl='http://127.0.0.1:5000', maxsteps=10, tickers=None):
+    def __init__(self, username="nobody", truefxid='', truefxpassword='', pedlarurl='http://127.0.0.1:5000', maxsteps=5, tickers=None):
         
         self.endpoint = pedlarurl
         self.username = username # pedlarweb username for mongodb collection 
         self.tickers = tickers
         self.maxsteps = maxsteps
 
-        self.orders = pd.DataFrame(columns=Order).set_index('id')
-        self.trades = pd.DataFrame(columns=Trade).set_index('id')
+        self.orders = pd.DataFrame(columns=Order).set_index('order_id')
+        self.trades = pd.DataFrame(columns=Trade).set_index('trade_id')
         
         self.history = pd.DataFrame(columns=Tick).set_index(['time','exchange','ticker'])
         self.orderbook = pd.DataFrame(columns=Book).set_index(['exchange','ticker'])
@@ -71,6 +71,7 @@ class Agent:
         data = r.json()
         if data['exist']:
             print('Existing user {} found'.format(data['username']))
+        self.username = data['username']
         # create truefx session 
         session, session_data, flag_parse_data, authrorize = truefx.config(api_format ='csv', flag_parse_data = True)
         self.truefxsession = session
@@ -93,9 +94,8 @@ class Agent:
         # upload to pedlar server 
         payload = {'user_id':self.username,'pnl':self.balance}
         r = requests.post(self.endpoint+"/tradesession", json=payload)
-        self.tradesession = r['tradesession']
+        self.tradesession = r.json()['tradesession']
         # upload trades for a tradesession 
-        self.trades = self.trades.rename('id':'trade_id')
         self.trades['backtest_id'] = self.tradesession
         self.trades['entrytime'] = self.trades['entrytime'].astype(np.int64)/1000000
         self.trades['exittime'] = self.trades['exittime'].astype(np.int64)/1000000
@@ -184,18 +184,24 @@ class Agent:
         volume = current_order['volume']
         entryprice = current_order['price']
         entrytime = current_order['time']
-        
-        quote = self.orderbook.loc[(exchange,ticker)]
+        # get closing price
+        quote = self.orderbook.loc[(exchange, ticker)]
         if volume > 0:
             exitprice = quote['bid']
         else:
             exitprice = quote['ask']
-
         exittime = quote['time']
-
+        # update trade record
         self.update_trades(exchange=exchange, ticker=ticker, volume=volume, entry_price=entryprice, exit_price=exitprice, entrytime=entrytime, exittime=exittime)
-
+        # delete order 
+        self.orders = self.orders.drop(orderid)
         return None 
+
+    def close_outstanding_orders(self):
+        outstanding_order_ids = self.orders.index
+        for order in outstanding_order_ids:
+            self.close_order(order)
+        return None
 
     def ondata(self, verbose=False):
         # make trade decisions 
@@ -203,7 +209,7 @@ class Agent:
         # self.portfolio give current holdings 
         # self
         self.create_order(exchange='TrueFX', ticker='GBP/USD', volume=1)
-        if self.step == 6:
+        if self.step == 3:
             self.close_order(orderid=1)
 
         return None 
@@ -213,16 +219,18 @@ class Agent:
         self.start_agent(verbose)
 
         while self.step < self.maxsteps:
-            self.update_history(verbose)
+            self.update_history(False)
             self.ondata(verbose)
             self.step += 1
             time.sleep(2)
             if verbose:
                 print('Step {}'.format(self.step))
-                print('Portfolio')
-                print(self.trades)
-                print(' ')
+                print('Orders')
+                print(self.orders)
 
+        self.close_outstanding_orders()
+        print('Orders')
+        print(self.orders)
         self.save_record()
 
 if __name__=='__main__':
