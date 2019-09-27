@@ -1,10 +1,13 @@
 
 
 # :chart_with_upwards_trend: pedlar
-Pedlar is an algorithmic trading platform for Python designed for trading events, competitions and sessions such as Algothons. It uses real time data from IEX and TrueFX 
+Pedlar is an algorithmic trading platform for Python designed for trading events, competitions and sessions such as Algothons. It uses real time data from IEX and TrueFX. It aims to support trading multiple securities at a frequency up to a second. Bid and ask prices from the top of the orderbook are streamed. 
 
 
 ## Getting Started
+All you need to do is to implement a method which is called everytime when new data comes in. 
+The methods take 4 arguments which contains all the information you need for making trade decisions at the time. 
+history is a dataframe containing the most recent history 
 
 
 ### Installation
@@ -21,31 +24,15 @@ from pedlar.agent import Agent
 
 class MyAgent(Agent):
   """A trading agent."""
-    def ondata(self, verbose=False):
+    def ondata(self, history=None, portfolio=None, orders=None, trades=None):
         # make trade decisions 
-        # self.history gives the most recent price history 
-        # self.portfolio give current holdings 
-        # self
         self.create_order(exchange='TrueFX', ticker='GBP/USD', volume=1)
         if self.step == 3:
             self.close_order(orderid=1)
 
         return None 
 
-if __name__ == "__main__":
-  import logging
-  logging.basicConfig(level=logging.DEBUG)
-  agent = MyAgent.from_args()
-  agent.run()
 ```
-
-The extra parameters are parsed from the command line and can be run using:
-
-```bash
-python3 -u myagent.py -h
-```
-
-
 
 ### Repository Structure
 

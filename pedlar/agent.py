@@ -36,7 +36,7 @@ class Agent:
     def __init__(self, username="nobody", truefxid='', truefxpassword='', pedlarurl='http://127.0.0.1:5000', maxsteps=5, tickers=None):
         
         self.endpoint = pedlarurl
-        self.username = username # pedlarweb username for mongodb collection 
+        self.username = username  
         self.tickers = tickers
         self.maxsteps = maxsteps
 
@@ -142,6 +142,10 @@ class Agent:
         self.history = self.history.append(truefx.set_index(['time', 'exchange', 'ticker']))
         self.history = self.history.append(iex.set_index(['time', 'exchange', 'ticker']))
 
+        # Ensure uniquess in price history
+
+        # Remove old data in price history 
+
         if verbose:
             print('Price History')
             print(self.history)
@@ -154,7 +158,7 @@ class Agent:
         self.trades.loc[self.tradeid] = [exchange, ticker, entry_price, exit_price, volume, entrytime, exittime]
         trade_pnl = volume * (exit_price - entry_price) 
         self.balance += trade_pnl
-        self.portfolio.loc[(exchange,ticker)] -= volume
+        self.portfolio.loc[(exchange, ticker)] -= volume
         return None 
 
     
@@ -203,11 +207,8 @@ class Agent:
             self.close_order(order)
         return None
 
-    def ondata(self, verbose=False):
+    def ondata(self, history=None, portfolio=None, orders=None, trades=None):
         # make trade decisions 
-        # self.history gives the most recent price history 
-        # self.portfolio give current holdings 
-        # self
         self.create_order(exchange='TrueFX', ticker='GBP/USD', volume=1)
         if self.step == 3:
             self.close_order(orderid=1)
@@ -220,7 +221,7 @@ class Agent:
 
         while self.step < self.maxsteps:
             self.update_history(False)
-            self.ondata(verbose)
+            self.ondata(history=self.history, portfolio=self.portfolio, orders=self.orders, trades=self.trades)
             self.step += 1
             time.sleep(2)
             if verbose:
