@@ -16,9 +16,10 @@ Refer to the csv files attached to have a better idea on how the trades and hist
 
 Currrently we have implemeted two methods to create and close orders. We support market orders only at the moment.
 
-We would like to hear your feedback in imporving the platform. It would be good to have 
+Future work:
+Support different types of orders such as limit orders, stop losses and take profits.
+Trade analysis integrated with alphalens and pyfolio
 
-Possible features
 
 ### Installation
 The client API is can be installed using:
