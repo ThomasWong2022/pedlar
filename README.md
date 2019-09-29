@@ -14,7 +14,11 @@ trades is a dataframe containing the completed trades of your agent
 
 Refer to the csv files attached to have a better idea on how the trades and history are stored in pedlar
 
-Currrently we have implemeted two method to create and close orders 
+Currrently we have implemeted two methods to create and close orders. We support market orders only at the moment.
+
+We would like to hear your feedback in imporving the platform. It would be good to have 
+
+Possible features
 
 ### Installation
 The client API is can be installed using:
@@ -52,4 +56,4 @@ pip3 install --no-cache-dir -U -r requirements.txt
 ## References
 Attribution 
 
-Data provided for free by IEX. View IEX’s Terms of Use. 
+Data provided for free by IEX. View IEX’s [Terms of Use] (https://iextrading.com/api-exhibit-a/). 
