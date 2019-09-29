@@ -43,8 +43,8 @@ class Agent:
         self.orders = pd.DataFrame(columns=Order).set_index('order_id')
         self.trades = pd.DataFrame(columns=Trade).set_index('trade_id')
         
-        self.history = pd.DataFrame(columns=Tick).set_index(['time','exchange','ticker'])
-        self.orderbook = pd.DataFrame(columns=Book).set_index(['exchange','ticker'])
+        self.history = pd.DataFrame(columns=Tick).set_index(['time', 'exchange', 'ticker'])
+        self.orderbook = pd.DataFrame(columns=Book).set_index(['exchange', 'ticker'])
         self.balance = 0 # PnL 
         
         self.orderid = 0 
@@ -143,6 +143,7 @@ class Agent:
         self.history = self.history.append(iex.set_index(['time', 'exchange', 'ticker']))
 
         # Ensure uniquess in price history
+        self.history = self.history[~self.history.index.duplicated(keep='first')]
 
         # Remove old data in price history 
 
@@ -230,8 +231,6 @@ class Agent:
                 print(self.orders)
 
         self.close_outstanding_orders()
-        print('Orders')
-        print(self.orders)
         self.save_record()
 
 if __name__=='__main__':

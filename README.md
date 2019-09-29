@@ -35,13 +35,22 @@ from pedlar.agent import Agent
 
 class MyAgent(Agent):
   """A trading agent."""
+    def __init__(self, user_param, **kwargs):
+      # Define parameters for your agent 
+      self.user_param = user_param 
+      super().__init__(**kwargs) # Must call this
+
     def ondata(self, history=None, portfolio=None, orders=None, trades=None):
         # make trade decisions based on history, portfolio, orders and trades 
         self.create_order(exchange='TrueFX', ticker='GBP/USD', volume=1)
         if self.step == 3:
             self.close_order(orderid=1)
-
         return None 
+
+if __name__=='__main__':
+    # Define list of tickers to trade 
+    agent = MyAgent(truefxid='', truefxpassword='', pedlarurl='http://127.0.0.1:5000', maxsteps=5, tickers=[('TrueFX','GBP/USD'), ('TrueFX','EUR/USD')])
+    agent.run_agents()
 
 ```
 

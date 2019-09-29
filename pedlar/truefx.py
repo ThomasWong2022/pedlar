@@ -166,13 +166,11 @@ def read_tick(session,session_data,flag_parse_data,authrozied):
         return data
 
 def config(symbols='', 
-          username='Thomas759', password='Thomas524', 
+          username='', password='', 
           force_unregistered='', expire_after='-1', snapshot=True, api_format = 'csv',flag_parse_data = True):
     session = _get_session(expire_after)
     username, password = _init_credentials(username, password)
     is_registered = _is_registered(username, password)
-    if not is_registered or force_unregistered:
-        print("You should register for Truefx ")
     qualifier = 'default'
     session, session_data, flag_parse_data, authrorized = _query(symbols, qualifier, api_format, snapshot, username, password,
         force_unregistered, flag_parse_data, session)
