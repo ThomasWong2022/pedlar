@@ -13,7 +13,7 @@ setuptools.setup(
   description="Algorithmic Trading Platform for Python",
   long_description=long_description,
   long_description_content_type="text/markdown",
-  url="https://github.com/nuric/pedlar",
+  url="https://github.com/ThomasWong2022/pedlar/",
   packages=["pedlar"],
   classifiers=[
     "Development Status :: 3 - Alpha",
