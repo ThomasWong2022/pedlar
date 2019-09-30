@@ -227,8 +227,12 @@ class Agent:
             time.sleep(2)
             if verbose:
                 print('Step {}'.format(self.step))
+                print()
                 print('Orders')
                 print(self.orders)
+                print()
+                print('History')
+                print(self.history)
 
         self.close_outstanding_orders()
         self.save_record()
