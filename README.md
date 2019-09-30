@@ -22,7 +22,8 @@ Trade analysis integrated with alphalens and pyfolio
 
 
 ### Installation
-The client API is can be installed using:
+
+Not ready yet! The client API is can be installed using:
 
 ```bash
 pip3 install --no-cache-dir -U pedlar
