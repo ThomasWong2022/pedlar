@@ -8,7 +8,9 @@ Pedlar is an algorithmic trading platform for Python designed for trading events
 
 To setup the agent a few parameters need to be set. 
 pedlarurl: Web server to the Algosoc database which stores your trade records, currently it is hosted on AWS at 
+
 maxsteps: Maximum number of steps to run the agent, it is recommended to set to not more than 2000.
+
 tickers: List of tuples containing the assets to be traded. Each tuple represents an asset which its exchange and ticker. 
 
 (Optional)
