@@ -5,6 +5,16 @@ Pedlar is an algorithmic trading platform for Python designed for trading events
 
 
 ## Getting Started
+
+To setup the agent a few parameters need to be set. 
+pedlarurl: Web server to the Algosoc database which stores your trade records, currently it is hosted on AWS at 
+maxsteps: Maximum number of steps to run the agent, it is recommended to set to not more than 2000.
+tickers: List of tuples containing the assets to be traded. Each tuple represents an asset which its exchange and ticker. 
+
+(Optional)
+truefxid, truefxpassword: User ID and passport for getting truefx premium data 
+
+
 All you need to do is to implement a method which is called everytime when new data comes in. 
 The methods take 4 arguments which contains all the information you need for making trade decisions at the time. 
 history is a dataframe containing the most recent history index by exchange, ticker and time 
