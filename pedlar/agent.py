@@ -84,6 +84,10 @@ class Agent:
         return None 
 
     def save_record(self):
+        # upload to pedlar server 
+        payload = {'user_id':self.username,'pnl':self.balance}
+        r = requests.post(self.endpoint+"/tradesession", json=payload)
+        self.tradesession = r.json()['tradesession']
         time_format = "%Y_%m_%d_%H_%M_%S" # datetime column format
         timestamp = datetime.now().strftime(time_format)
         pricefilename = 'Historical_Price_{}.csv'.format(self.tradesession)
@@ -91,10 +95,6 @@ class Agent:
         # save price history 
         self.history.to_csv(pricefilename)
         self.trades.to_csv(tradefilename)
-        # upload to pedlar server 
-        payload = {'user_id':self.username,'pnl':self.balance}
-        r = requests.post(self.endpoint+"/tradesession", json=payload)
-        self.tradesession = r.json()['tradesession']
         # upload trades for a tradesession 
         self.trades['backtest_id'] = self.tradesession
         self.trades['entrytime'] = self.trades['entrytime'].astype(np.int64)/1000000

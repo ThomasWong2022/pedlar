@@ -98,9 +98,9 @@ def _init_session(session=None):
 
 
 def _init_credentials(username='', password=''):
-    if username=='':
+    if username=='OS':
         username = os.getenv('TRUEFX_USERNAME').rstrip()
-    if password=='':
+    if password=='OS':
         password = os.getenv('TRUEFX_PASSWORD').rstrip()
     return username, password
 
