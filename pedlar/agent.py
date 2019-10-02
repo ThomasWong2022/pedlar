@@ -33,7 +33,7 @@ class Agent:
 
     
 
-    def __init__(self, username="nobody", truefxid='', truefxpassword='', pedlarurl='http://127.0.0.1:5000', maxsteps=5, tickers=None):
+    def __init__(self, username="nobody", truefxid='', truefxpassword='', pedlarurl='http://127.0.0.1:5000', maxsteps=10, tickers=None):
         
         self.endpoint = pedlarurl
         self.username = username  
@@ -66,12 +66,17 @@ class Agent:
 
     def start_agent(self, verbose=False):
         # create user profile in MongoDB if not exist 
-        payload = {'user':self.username}
-        r = requests.post(self.endpoint+"/user", json=payload)
-        data = r.json()
-        if data['exist']:
-            print('Existing user {} found'.format(data['username']))
-        self.username = data['username']
+        try:
+            payload = {'user':self.username}
+            r = requests.post(self.endpoint+"/user", json=payload)
+            data = r.json()
+            if data['exist']:
+                print('Existing user {} found'.format(data['username']))
+            self.username = data['username']
+            self.connection = True
+            self.tradesession = data['tradesession']
+        except:
+            self.connection = False
         # create truefx session 
         session, session_data, flag_parse_data, authrorize = truefx.config(api_format ='csv', flag_parse_data = True)
         self.truefxsession = session
@@ -96,19 +101,20 @@ class Agent:
         self.history.to_csv(pricefilename)
         self.trades.to_csv(tradefilename)
         # upload trades for a tradesession 
-        self.trades['backtest_id'] = self.tradesession
-        self.trades['entrytime'] = self.trades['entrytime'].astype(np.int64)/1000000
-        self.trades['exittime'] = self.trades['exittime'].astype(np.int64)/1000000
-        self.trades.reset_index(inplace=True)
-        trades = self.trades.to_dict(orient='record')
-        for t in trades:
-            r = requests.post(self.endpoint+'/trade', json=t)
+        if self.connection and False:
+            self.trades['backtest_id'] = self.tradesession
+            self.trades['entrytime'] = self.trades['entrytime'].astype(np.int64)/1000000
+            self.trades['exittime'] = self.trades['exittime'].astype(np.int64)/1000000
+            self.trades.reset_index(inplace=True)
+            trades = self.trades.to_dict(orient='record')
+            for t in trades:
+                r = requests.post(self.endpoint+'/trade', json=t)
         return None 
 
     def universe_definition(self, tickerlist=None, verbose=False):
 
         if tickerlist is None:
-            tickerlist = [('TrueFX','GBP/USD'), ('TrueFX','EUR/USD'), ('IEX','BLK'), ('IEX','IVV')]
+            tickerlist = [('TrueFX','GBP/USD'), ('TrueFX','EUR/USD'), ('IEX','SPY'), ('IEX','QQQ')]
 
         self.portfolio = pd.DataFrame(columns=['volume'], index=pd.MultiIndex.from_tuples(tickerlist, names=('exchange', 'ticker'))) 
         self.portfolio['volume'] = 0
@@ -116,7 +122,7 @@ class Agent:
         iextickers = [x[1] for x in tickerlist if x[0]=='IEX']
         self.iextickernames = ','.join(iextickers)
         if self.iextickernames == '':
-            self.iextickernames = 'BLK,IVV'
+            self.iextickernames = 'SPY,QQQ'
 
         if verbose:
             print('Portfolio')
@@ -160,6 +166,12 @@ class Agent:
         trade_pnl = volume * (exit_price - entry_price) 
         self.balance += trade_pnl
         self.portfolio.loc[(exchange, ticker)] -= volume
+        # upload to pedlar server 
+        if self.connection: 
+            t = {'backtest_id': self.tradesession,'entrytime':entrytime.strftime("%s"), 'exittime':exittime.strftime("%s"), 'trade_id':self.tradeid,
+                    'exchange':exchange, 'ticker':ticker, 'volume':volume, 'entryprice':entry_price, 'exitprice':'exit_price' }
+            r = requests.post(self.endpoint+'/trade', json=json.dumps(t))
+
         return None 
 
     
@@ -224,7 +236,7 @@ class Agent:
             self.update_history(False)
             self.ondata(history=self.history, portfolio=self.portfolio, orders=self.orders, trades=self.trades)
             self.step += 1
-            time.sleep(2)
+            time.sleep(5)
             if verbose:
                 print('Step {}'.format(self.step))
                 print()
