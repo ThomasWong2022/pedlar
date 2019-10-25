@@ -46,6 +46,8 @@ class Agent:
         self.orderbook = pd.DataFrame(columns=Book).set_index(['exchange', 'ticker'])
         self.balance = 0 # PnL 
 
+        self.holdings = []
+
         # caplim is the max amount of capital allocated 
         # shorting uses up caplim but gives cash 
         # check caplim at each portfolio rebalance and scale down the target holding if that exceeds caplim
@@ -104,16 +106,18 @@ class Agent:
 
     def save_record(self):
         # upload to pedlar server 
-        payload = {'user_id':self.username,'pnl':self.balance}
-        r = requests.post(self.endpoint+"/tradesession", json=payload)
-        self.tradesession = r.json()['tradesession']
+        if self.connection:
+            payload = {'user_id':self.username,'pnl':self.balance}
+            r = requests.post(self.endpoint+"/tradesession", json=payload)
+            self.tradesession = r.json()['tradesession']
         time_format = "%Y_%m_%d_%H_%M_%S" # datetime column format
         timestamp = datetime.now().strftime(time_format)
         pricefilename = 'Historical_Price_{}.csv'.format(self.tradesession)
         tradefilename = 'Trade_Record_{}.csv'.format(self.tradesession)
         # save price history 
         self.history.to_csv(pricefilename)
-        self.trades.to_csv(tradefilename)
+        self.history_trades = pd.concat(self.holdings,axis=0)
+        self.history_trades.to_csv(tradefilename)
         # upload trades for a tradesession 
         if self.connection and False:
             self.trades['backtest_id'] = self.tradesession
@@ -239,16 +243,22 @@ class Agent:
         """
         Input: new_weights: dataframe with same index as portfolio
         """
+        # add historical holdings
+        # To Do: Add time to the portfolio holdings? 
+        self.holdings.append(self.portfolio.transpose())
         # construct changes 
         self.holdings_change = new_weights - self.portfolio
         # perform orders wrt to cash 
         # check asset allocation limit 
-        self.abspos = new_weights * self.orderbook['ask']
+        self.abspos = np.sum(np.abs(new_weights['volume']) * self.orderbook['ask'])
         if self.abspos > self.caplim:
             raise Error()
-
-        
-
+        # update to target portfolio
+        self.holdings_change['transact'] = np.where(self.holdings_change['volume']>0, self.orderbook.loc[self.holdings_change.index,:]['ask'],self.orderbook.loc[self.holdings_change.index,:]['bid']) * self.holdings_change['volume']
+        self.cash = self.cash - np.sum(self.holdings_change['transact'])
+        if self.cash<0:
+            raise Error()
+        self.portfolio = new_weights 
         return None 
 
 
@@ -259,24 +269,20 @@ class Agent:
         if verbose:
             print(self.portfolio)
 
-        start_holdings = [0 for i in range(self.n_assets-1)]
-        start_holdings.append(self.capital)
-        new_weights = dict(zip(self.tickers, start_holdings))
+        # starting portfolio with zero holding 
+        new_weights = self.portfolio
 
         while self.step < self.maxsteps:
             self.update_history(False)
             self.rebalance(new_weights)
-            new_weights = self.ondatafunc(history=self.history, portfolio=self.portfolio, trades=self.trades)
+            new_weights = self.ondata(history=self.history, portfolio=self.portfolio, trades=self.trades)
             self.step += 1
             time.sleep(2)
             if verbose:
-                print('Step {}'.format(self.step))
+                print('Step {} {}'.format(self.step,self.cash))
                 print()
-                print('Orders')
-                print(self.orders)
-                print()
-                print('History')
-                print(self.history)
+                print('Portfolio')
+                print(self.portfolio)
         
         self.save_record()
 
@@ -285,7 +291,8 @@ if __name__=='__main__':
     def ondata(history, portfolio, trades):
         # copy 
         target_portfolio = portfolio.copy()
-
+        # calculate target portfolio 
+        target_portfolio['volume'] = np.random.random()
         return target_portfolio
 
     agent = Agent(ondatafunc=ondata)
