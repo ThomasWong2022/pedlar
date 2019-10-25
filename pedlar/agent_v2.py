@@ -46,8 +46,12 @@ class Agent:
         self.orderbook = pd.DataFrame(columns=Book).set_index(['exchange', 'ticker'])
         self.balance = 0 # PnL 
 
-        self.capital = 100000 
-
+        # caplim is the max amount of capital allocated 
+        # shorting uses up caplim but gives cash 
+        # check caplim at each portfolio rebalance and scale down the target holding if that exceeds caplim
+        self.caplim = 100000 
+        self.pnl = 0
+        self.cash = 50000
         
         self.orderid = 0 
         self.tradeid = 0
@@ -128,7 +132,6 @@ class Agent:
 
         self.portfolio = pd.DataFrame(columns=['volume'], index=pd.MultiIndex.from_tuples(tickerlist, names=('exchange', 'ticker'))) 
         self.portfolio['volume'] = 0
-        self.portfolio.loc[('Cash','Cash'), :] = [self.capital]
 
         iextickers = [x[1] for x in tickerlist if x[0]=='IEX']
         self.iextickernames = ','.join(iextickers)
@@ -139,8 +142,6 @@ class Agent:
             print('Portfolio')
             print(self.portfolio)
 
-        
-        tickerlist.append(('Cash','Cash'))
         self.tickers = tickerlist
         self.n_assets = len(self.tickers)
 
@@ -153,6 +154,7 @@ class Agent:
         return truefxdata, iexdata
 
     def update_history(self, verbose=False):
+        # get raw data 
         truefx, iex = self.download_tick()
 
         # build order book 
@@ -235,10 +237,17 @@ class Agent:
 
     def rebalance(self, new_weights, verbose=False):
         """
-        Input: new_weights: dict assets -> weights 
+        Input: new_weights: dataframe with same index as portfolio
         """
-        self.capital = 100000
+        # construct changes 
+        self.holdings_change = new_weights - self.portfolio
+        # perform orders wrt to cash 
+        # check asset allocation limit 
+        self.abspos = new_weights * self.orderbook['ask']
+        if self.abspos > self.caplim:
+            raise Error()
 
+        
 
         return None 
 
@@ -273,7 +282,13 @@ class Agent:
 
 if __name__=='__main__':
 
-    agent = Agent()
+    def ondata(history, portfolio, trades):
+        # copy 
+        target_portfolio = portfolio.copy()
+
+        return target_portfolio
+
+    agent = Agent(ondatafunc=ondata)
     agent.run_agents(verbose=True)
 
 
