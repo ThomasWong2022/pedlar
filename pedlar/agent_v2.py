@@ -181,6 +181,7 @@ class Agent:
             print('Orderbook')
             print(self.orderbook)
 
+#################################################################################################################
 
     def update_trades(self, exchange='TrueFX', ticker='GBP/USD', volume=1, entry_price=1.23, exit_price=1.24, entrytime=None, exittime=None):
         self.tradeid += 1
@@ -236,7 +237,7 @@ class Agent:
         self.orders = self.orders.drop(orderid)
         return None 
 
-
+#######################################################################################################################
     
 
     def rebalance(self, new_weights, verbose=False):
@@ -245,7 +246,9 @@ class Agent:
         """
         # add historical holdings
         # To Do: Add time to the portfolio holdings? 
-        self.holdings.append(self.portfolio.transpose())
+        now = datetime.now()
+        current_holdings = self.portfolio.transpose().set_index(np.array([now]))
+        self.holdings.append(current_holdings)
         # construct changes 
         self.holdings_change = new_weights - self.portfolio
         # perform orders wrt to cash 
@@ -283,6 +286,7 @@ class Agent:
                 print()
                 print('Portfolio')
                 print(self.portfolio)
+                print()
         
         self.save_record()
 
