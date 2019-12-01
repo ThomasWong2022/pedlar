@@ -51,9 +51,11 @@ class Agent:
         # caplim is the max amount of capital allocated 
         # shorting uses up caplim but gives cash 
         # check caplim at each portfolio rebalance and scale down the target holding if that exceeds caplim
-        self.caplim = 100000 
+         
+        self.portfoval = 50000
         self.pnl = 0
         self.cash = 50000
+        self.caplim = self.portfoval * 2
         
         self.orderid = 0 
         self.tradeid = 0
@@ -102,7 +104,7 @@ class Agent:
         else:
             self.universe = None 
         self.create_portfolio(self.universe,verbose)
-        return None 
+        return None
 
     def save_record(self):
         # upload to pedlar server 
@@ -253,10 +255,13 @@ class Agent:
         self.holdings_change = new_weights - self.portfolio
         # perform orders wrt to cash 
         # check asset allocation limit 
+        self.portfoval = np.sum(self.portfolio['volume'] * self.orderbook['ask']) + self.cash
+        self.caplim = self.portfoval * 2
         self.abspos = np.sum(np.abs(new_weights['volume']) * self.orderbook['ask'])
         if self.abspos > self.caplim:
             raise Error()
         # update to target portfolio
+        # check cash must be positive 
         self.holdings_change['transact'] = np.where(self.holdings_change['volume']>0, self.orderbook.loc[self.holdings_change.index,:]['ask'],self.orderbook.loc[self.holdings_change.index,:]['bid']) * self.holdings_change['volume']
         self.cash = self.cash - np.sum(self.holdings_change['transact'])
         if self.cash<0:
@@ -279,10 +284,11 @@ class Agent:
             self.update_history(False)
             self.rebalance(new_weights)
             new_weights = self.ondata(history=self.history, portfolio=self.portfolio, trades=self.trades)
+            self.portfoval = np.sum(self.portfolio['volume'] * self.orderbook['ask']) + self.cash
             self.step += 1
             time.sleep(2)
             if verbose:
-                print('Step {} {}'.format(self.step,self.cash))
+                print('Step {} {}'.format(self.step, self.portfoval))
                 print()
                 print('Portfolio')
                 print(self.portfolio)
@@ -296,7 +302,7 @@ if __name__=='__main__':
         # copy 
         target_portfolio = portfolio.copy()
         # calculate target portfolio 
-        target_portfolio['volume'] = np.random.random()
+        target_portfolio['volume'] = (np.random.random() - 0.5) * 10000
         return target_portfolio
 
     agent = Agent(ondatafunc=ondata)
